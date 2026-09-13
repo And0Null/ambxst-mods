@@ -32,6 +32,20 @@ Open it with `ambxst run pkg-launcher` (bind it to a key, e.g. `SUPER+SHIFT+P`):
 hl.bind("SUPER + SHIFT + P", hl.dsp.exec_cmd("ambxst run pkg-launcher"))
 ```
 
+### Screenshots
+
+Search with the details pane (here a repo package that's already installed):
+
+![Search](screenshots/search.png)
+
+Empty query browses your installed packages:
+
+![Installed](screenshots/installed.png)
+
+AUR variants, with votes / popularity / maintainer / deps:
+
+![AUR](screenshots/aur.png)
+
 ### Features
 
 - **Live search** across repos + AUR: repo results show instantly, AUR results merge in

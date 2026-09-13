@@ -72,7 +72,7 @@ PanelWindow {
             // Show the cached installed list instantly, refresh it in background.
             if (root.installedList.length > 0) {
                 root.results = root.installedList;
-                root.status = root.installedList.length + " instalados";
+                root.status = root.installedList.length + " installed";
             }
             installedProc.running = true;
             Qt.callLater(function() {
@@ -132,7 +132,7 @@ PanelWindow {
     function finishStatus() {
         if (root.repoDone && root.aurDone) {
             root.searching = false;
-            root.status = root.results.length === 0 ? "Sin resultados" : (root.results.length + " paquetes");
+            root.status = root.results.length === 0 ? "No results" : (root.results.length + " packages");
         }
     }
 
@@ -202,15 +202,15 @@ PanelWindow {
             if (value !== undefined && value !== null && value !== "" && value !== "None")
                 rows.push({ label: label, value: String(value) });
         }
-        add("Versión", d.Version);
+        add("Version", d.Version);
         add("Repo", d.Repository);
-        add("Descarga", d["Download Size"]);
-        add("Instalado", d["Installed Size"]);
+        add("Download", d["Download Size"]);
+        add("Installed", d["Installed Size"]);
         if (d.Votes)
-            add("AUR", d.Votes + " votos" + (d.Popularity ? "  ·  pop " + Number(d.Popularity).toFixed(3) : ""));
-        add("Mantenedor", d.Maintainer);
+            add("AUR", d.Votes + " votes" + (d.Popularity ? "  ·  pop " + Number(d.Popularity).toFixed(3) : ""));
+        add("Maintainer", d.Maintainer);
         if (d["Out Of Date"] === "Yes")
-            add("Aviso", "marcado out-of-date");
+            add("Warning", "marked out-of-date");
         add("Deps", d["Depends On"] ? d["Depends On"].split("  ").join(", ") : "");
         add("URL", d.URL);
         return rows;
@@ -240,7 +240,7 @@ PanelWindow {
             root.results = root.installedList;
             root.selected = 0;
             root.searching = false;
-            root.status = root.installedList.length > 0 ? (root.installedList.length + " instalados") : "";
+            root.status = root.installedList.length > 0 ? (root.installedList.length + " installed") : "";
             infoDebounce.restart();
             return;
         }
@@ -248,7 +248,7 @@ PanelWindow {
         root.searching = true;
         root.repoDone = false;
         root.aurDone = false;
-        root.status = "Buscando…";
+        root.status = "Searching…";
         // The query is passed as an argument (never interpolated into the
         // shell string) so any characters stay safe.
         repoProc.gen = gen;
@@ -272,7 +272,7 @@ PanelWindow {
             root.repoDone = true;
             if (code !== 0 || root.searchGen !== repoProc.gen) {
                 if (code !== 0)
-                    root.status = "pacman falló (exit " + code + ")";
+                    root.status = "pacman failed (exit " + code + ")";
                 root.finishStatus();
                 return;
             }
@@ -298,7 +298,7 @@ PanelWindow {
             root.aurDone = true;
             if (code !== 0 || root.searchGen !== aurProc.gen) {
                 if (code !== 0)
-                    root.status = "paru falló (exit " + code + ")";
+                    root.status = "paru failed (exit " + code + ")";
                 root.finishStatus();
                 return;
             }
@@ -417,7 +417,7 @@ PanelWindow {
             root.installedList = root.sortResults(root.parseInstalled(installedOut.text), "");
             if (root.query.trim() === "") {
                 root.results = root.installedList;
-                root.status = root.installedList.length + " instalados";
+                root.status = root.installedList.length + " installed";
                 root.selected = 0;
                 infoDebounce.restart();
             }
@@ -560,7 +560,7 @@ PanelWindow {
                             anchors.fill: parent
                             verticalAlignment: TextInput.AlignVCenter
                             visible: !searchField.text
-                            text: "Buscar paquetes…  (repos + AUR)"
+                            text: "Search packages…  (repos + AUR)"
                             color: root.alpha(Colors.overBackground, 0.45)
                             font: searchField.font
                         }
@@ -634,7 +634,7 @@ PanelWindow {
                                     textFormat: Text.PlainText
                                     readonly property var upd: root.updates[pkg ? pkg.name : ""]
                                     visible: pkg ? (pkg.installed || upd !== undefined && upd !== null) : false
-                                    text: installedMark.upd ? ("↑ " + installedMark.upd.to) : "✓ instalado"
+                                    text: installedMark.upd ? ("↑ " + installedMark.upd.to) : "✓ installed"
                                     color: installedMark.upd ? Colors.tertiary : Colors.primary
                                     font.family: Styling.defaultFont
                                     font.pixelSize: Styling.fontSize(0)
@@ -695,7 +695,7 @@ PanelWindow {
                     Text {
                         anchors.centerIn: parent
                         visible: !root.searching && root.results.length === 0
-                        text: root.query ? "Sin resultados" : "Cargando instalados…"
+                        text: root.query ? "No results" : "Loading installed…"
                         color: root.alpha(Colors.overBackground, 0.5)
                         font.family: Styling.defaultFont
                         font.pixelSize: Styling.fontSize(1)
@@ -730,7 +730,7 @@ PanelWindow {
                             width: parent.width
                             textFormat: Text.PlainText
                             visible: root.results[root.selected] ? root.results[root.selected].installed : false
-                            text: "✓ Ya está instalado — ↵ lo reinstala/actualiza"
+                            text: "✓ Already installed — ↵ reinstalls/updates it"
                             color: Colors.primary
                             font.family: Styling.defaultFont
                             font.pixelSize: Styling.fontSize(0)
@@ -743,7 +743,7 @@ PanelWindow {
                             textFormat: Text.PlainText
                             readonly property var upd: root.updates[root.results[root.selected] ? root.results[root.selected].name : ""]
                             visible: upd !== undefined && upd !== null
-                            text: upd ? ("↑ Actualización: " + upd.from + "  →  " + upd.to) : ""
+                            text: upd ? ("↑ Update: " + upd.from + "  →  " + upd.to) : ""
                             color: Colors.tertiary
                             font.family: Styling.defaultFont
                             font.pixelSize: Styling.fontSize(0)
@@ -801,7 +801,7 @@ PanelWindow {
             Text {
                 width: parent.width
                 textFormat: Text.PlainText
-                text: "↵ instalar   ·   Ctrl+D quitar   ·   Ctrl+U actualizar todo   ·   Esc cerrar"
+                text: "↵ install   ·   Ctrl+D remove   ·   Ctrl+U update all   ·   Esc close"
                 color: root.alpha(Colors.overBackground, 0.45)
                 font.family: Styling.defaultFont
                 font.pixelSize: Styling.fontSize(0)
