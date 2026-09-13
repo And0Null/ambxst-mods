@@ -1,0 +1,8 @@
+diff --git i/modules/services/GlobalShortcuts.qml w/modules/services/GlobalShortcuts.qml
+index ee1ce50f..1ba67075 100644
+--- i/modules/services/GlobalShortcuts.qml
++++ w/modules/services/GlobalShortcuts.qml
+@@ -59,2 +59,3 @@ QtObject {
+             case "powermenu": toggleSimpleModule("powermenu"); break;
++            case "pkg-launcher": toggleSimpleModule("packages"); break;
+             case "tools": toggleSimpleModule("tools"); break;

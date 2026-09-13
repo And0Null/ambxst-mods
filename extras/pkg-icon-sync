@@ -1,0 +1,87 @@
+#!/usr/bin/env python3
+"""pkg-icon-sync — render the Package Launcher icon from the current Ambxst palette.
+
+The icon follows the wallpaper: tile = `primary`, glyph = `overPrimary` (a
+Material-you on/container pair, so contrast holds for any palette).
+
+The icon is written with a content-addressed name (pkg-launcher-<hash>.png) and
+the .desktop's Icon= is repointed atomically. That defeats both caches
+(Quickshell's DesktopEntries and Qt's image cache keyed by URL), so the launcher
+picks up the new colour the next time it opens — no shell reload needed.
+
+Run from a matugen post_hook so it refreshes on every theme change.
+"""
+import hashlib
+import json
+import os
+import re
+import subprocess
+import tempfile
+
+from PIL import Image, ImageDraw, ImageFont
+
+HOME = os.path.expanduser("~")
+COLORS = os.path.join(HOME, ".cache/ambxst/colors.json")
+FONT = "/usr/share/fonts/TTF/Phosphor-Bold.ttf"
+GLYPH = "\ue1da"  # Phosphor "cube" (same family Ambxst uses for its icons)
+SIZES = [256, 128, 64, 48, 32]
+ICON_DIR = os.path.join(HOME, ".local/share/icons/hicolor")
+DESKTOP = os.path.join(HOME, ".local/share/applications/Package Launcher.desktop")
+
+
+def palette():
+    with open(COLORS) as f:
+        c = json.load(f)
+    tile = c.get("primary") or c.get("surfaceContainer") or "#3c4279"
+    glyph = c.get("overPrimary") or c.get("background") or "#0d0d11"
+    return tile, glyph
+
+
+def render(tile, glyph, size):
+    n = size * 4  # supersample for smooth edges
+    img = Image.new("RGBA", (n, n), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    d.rounded_rectangle([0, 0, n - 1, n - 1], radius=int(n * 0.22), fill=tile)
+    f = ImageFont.truetype(FONT, int(n * 0.58))
+    bb = d.textbbox((0, 0), GLYPH, font=f)
+    d.text((
+        (n - (bb[2] - bb[0])) / 2 - bb[0],
+        (n - (bb[3] - bb[1])) / 2 - bb[1] - n * 0.012,
+    ), GLYPH, font=f, fill=glyph)
+    return img.resize((size, size), Image.LANCZOS)
+
+
+def atomic_write(path, text):
+    fd, tmp = tempfile.mkstemp(dir=os.path.dirname(path))
+    os.write(fd, text.encode())
+    os.close(fd)
+    os.replace(tmp, path)
+
+
+def main():
+    tile, glyph = palette()
+    digest = hashlib.sha1(("%s|%s" % (tile, glyph)).encode()).hexdigest()[:8]
+    name = "pkg-launcher-%s.png" % digest
+    version_re = re.compile(r"^pkg-launcher-[0-9a-f]{8}\.png$")
+
+    for s in SIZES:
+        d = os.path.join(ICON_DIR, "%dx%d/apps" % (s, s))
+        os.makedirs(d, exist_ok=True)
+        render(tile, glyph, s).save(os.path.join(d, name))
+        for f in os.listdir(d):
+            if version_re.match(f) and f != name:
+                os.remove(os.path.join(d, f))
+
+    subprocess.run(["gtk-update-icon-cache", "-f", "-t", ICON_DIR], capture_output=True)
+
+    if os.path.exists(DESKTOP):
+        icon = os.path.join(ICON_DIR, "256x256/apps", name)
+        body = open(DESKTOP).read()
+        updated = re.sub(r"^Icon=.*$", "Icon=" + icon, body, flags=re.M)
+        if updated != body:
+            atomic_write(DESKTOP, updated)
+            subprocess.run(["update-desktop-database", os.path.dirname(DESKTOP)], capture_output=True)
+
+
+if __name__ == "__main__":
+    main()

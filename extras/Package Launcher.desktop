@@ -1,0 +1,14 @@
+# Drop this into ~/.local/share/applications/ to launch the package launcher
+# from your app launcher / app menu. Replace <user> with your username, or run
+# extras/pkg-icon-sync first (it writes the versioned icon and repoints Icon=
+# automatically). Then: update-desktop-database ~/.local/share/applications
+[Desktop Entry]
+Type=Application
+Name=Package Launcher
+Comment=Search, install and update packages (repos + AUR)
+Exec=ambxst run pkg-launcher
+Icon=/home/<user>/.local/share/icons/hicolor/256x256/apps/pkg-launcher.png
+Terminal=false
+Categories=System;PackageManager;
+Keywords=pkg;package;pacman;paru;aur;install;update;packages;
+StartupNotify=false

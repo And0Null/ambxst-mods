@@ -1,0 +1,44 @@
+{
+    "$schema": "https://raw.githubusercontent.com/Axenide/Ambxst/dev/docs/mods/manifest.schema.json",
+    "manifestVersion": 1,
+    "id": "and00pium.pkg-launcher",
+    "name": "Package launcher (pacseek-style)",
+    "version": "1.5.0",
+    "description": "Launcher-style package overlay: live search across the sync repos (pacman) and the AUR (paru), installed badges, and install/remove handed off to an interactive terminal where paru owns the sudo prompt and progress. Keyboard-first: type, arrows, Enter installs, Ctrl+D removes. Opened via the pkg-launcher command (SUPER+SHIFT+P) or the IPC service.",
+    "license": "MIT",
+    "author": "AndoNull",
+    "compatibility": {
+        "api": 1,
+        "ambxst": ">=1.3.0 <1.4.0",
+        "testedBaseCommits": [
+            "af9f8ad4f42d7cd77f57a7c75f6a2a5d1fb59674"
+        ]
+    },
+    "dependencies": [],
+    "dependencySources": {},
+    "conflicts": [],
+    "permissions": [
+        "Registers a Visibilities module and IPC command (pkg-launcher)",
+        "Runs read-only package searches: pacman -Ss and paru -Ss",
+        "Runs read-only package searches: pacman -Ss and paru -Ss (requires the paru binary)"
+    ],
+    "operations": [
+        {
+            "type": "overlay",
+            "source": "overlays/modules/widgets/pkglauncher/PkgLauncher.qml",
+            "target": "modules/widgets/pkglauncher/PkgLauncher.qml"
+        },
+        {
+            "type": "patch",
+            "source": "patches/visibilities.patch"
+        },
+        {
+            "type": "patch",
+            "source": "patches/globalshortcuts.patch"
+        },
+        {
+            "type": "patch",
+            "source": "patches/shell.patch"
+        }
+    ]
+}
