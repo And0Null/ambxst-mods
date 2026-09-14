@@ -1,0 +1,18 @@
+{
+  "$schema": "https://raw.githubusercontent.com/Axenide/Ambxst/dev/docs/mods/settings.schema.json",
+  "version": 1,
+  "fields": [
+    {
+      "key": "aurHelper",
+      "label": "AUR helper",
+      "description": "Binary used for AUR search, package info, pending-upgrade checks and the install/remove/update-all terminal handoff.",
+      "type": "enum",
+      "options": [
+        { "label": "paru", "value": "paru" },
+        { "label": "yay", "value": "yay" }
+      ],
+      "default": "paru",
+      "restartRequired": true
+    }
+  ]
+}

@@ -3,8 +3,8 @@
     "manifestVersion": 1,
     "id": "and0null.pkg-launcher",
     "name": "Package launcher (pacseek-style)",
-    "version": "1.5.0",
-    "description": "Launcher-style package overlay: live search across the sync repos (pacman) and the AUR (paru), installed badges, and install/remove handed off to an interactive terminal where paru owns the sudo prompt and progress. Keyboard-first: type, arrows, Enter installs, Ctrl+D removes. Opened via the pkg-launcher command (SUPER+SHIFT+P) or the IPC service.",
+    "version": "1.6.0",
+    "description": "Launcher-style package overlay: live search across the sync repos (pacman) and the AUR (via a configurable helper: paru or yay, chosen in Settings), installed badges, and install/remove handed off to an interactive terminal where the helper owns the sudo prompt and progress. Keyboard-first: type, arrows, Enter installs, Ctrl+D removes. Opened via the pkg-launcher command (SUPER+SHIFT+P) or the IPC service.",
     "license": "MIT",
     "author": "And0Null",
     "compatibility": {
@@ -19,9 +19,12 @@
     "conflicts": [],
     "permissions": [
         "Registers a Visibilities module and IPC command (pkg-launcher)",
-        "Runs read-only package searches: pacman -Ss and paru -Ss",
-        "Runs read-only package searches: pacman -Ss and paru -Ss (requires the paru binary)"
+        "Runs read-only package searches: pacman -Ss and the configured AUR helper's -Ss (requires the paru or yay binary)",
+        "Reads mod settings via ModsService (aurHelper)"
     ],
+    "settings": {
+        "schema": "settings.json"
+    },
     "operations": [
         {
             "type": "overlay",
