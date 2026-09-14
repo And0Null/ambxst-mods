@@ -1,3 +1,8 @@
 # mod manager keeps its own copies under ~/.local/share/ambxst
 *.zip
 *.tgz
+
+# workbench for mods in progress, not ready for the repo
+/staging/
+# Local AI runtime state
+.atl/
