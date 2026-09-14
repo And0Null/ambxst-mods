@@ -63,10 +63,12 @@ Or launch it from any app launcher/menu — drop the
   ambxst reload
   ```
 
-- **You installed an old release under the `and00pium.` id** (the repo was renamed
-  to `And0Null` and the mod id became `and0null.pkg-launcher`). Ambxst refuses the
-  id change on update — `ambxst mods update` prints `Error: updated package changed
-  its id`. Reinstall from the new URL instead:
+- **You installed an old release** (published when the GitHub username was
+  `AndoNull` and the mod id was `and00pium.pkg-launcher`). Both the repo URL and
+  the mod id have since changed — username is now `And0Null` (zero, not "o") and
+  the id is `and0null.pkg-launcher`. Ambxst treats the id as the mod's identity and
+  refuses the change on update — `ambxst mods update` prints
+  `Error: updated package changed its id`. Reinstall from the new URL instead:
 
   ```bash
   ambxst mods remove and00pium.pkg-launcher
