@@ -26,11 +26,26 @@ ambxst mods install https://github.com/AndoNull/ambxst-mods/tree/main/packages/p
 ambxst mods enable and00pium.pkg-launcher
 ```
 
-Open it with `ambxst run pkg-launcher` (bind it to a key, e.g. `SUPER+SHIFT+P`):
+Open it with `ambxst run pkg-launcher`. There is **no default keybind** — bind it
+yourself, e.g. `SUPER+SHIFT+P`:
 
 ```lua
 hl.bind("SUPER + SHIFT + P", hl.dsp.exec_cmd("ambxst run pkg-launcher"))
 ```
+
+Or launch it from any app launcher/menu — drop the
+`extras/Package Launcher.desktop` into `~/.local/share/applications/`.
+
+### Troubleshooting
+
+- **Keybind does nothing / `ambxst run pkg-launcher` is not a known command** —
+  the mod registers its command at shell build time. Make sure it's enabled and
+  the shell was rebuilt after installing:
+
+  ```bash
+  ambxst mods enable and00pium.pkg-launcher
+  ambxst reload
+  ```
 
 ### Screenshots
 
@@ -86,6 +101,43 @@ AUR variants, with votes / popularity / maintainer / deps:
   ```
 
   (needs `python3` with `Pillow` and the Phosphor font.)
+
+---
+
+## desktop-widgets — `and00pium.desktop-widgets` (v0.1.0)
+
+Rainmeter-style floating desktop widgets for Ambxst: a clock, a month calendar, a
+weather card and a system-info card that live on the Wayland **background layer** —
+above the wallpaper, below every window and the bar. Drag them anywhere by hand;
+their positions are remembered.
+
+```bash
+ambxst mods install https://github.com/AndoNull/ambxst-mods/tree/main/packages/desktop-widgets
+ambxst mods enable and00pium.desktop-widgets
+```
+
+### Features
+
+- **Four widgets**: big digital clock with the full date, month-grid calendar
+  (reuses Ambxst's dashboard calendar), weather card with a 3-day forecast strip
+  (reuses Ambxst's dashboard weather widget and WeatherService), and a
+  system-info card (CPU %, RAM %, battery, uptime — read from /proc).
+- **Draggable anywhere**: open-hand drag, snap-free; positions are stored as
+  *fractional* screen coordinates, so they survive resolution and layout changes.
+- **Persisted** in `~/.local/state/ambxst/desktop-widgets.json` on drag end and on
+  every menu change, debounced so drags don't thrash the disk.
+- **Per-screen setup**: each monitor lives independently (per-screen positions and
+  enable flags).
+- **Management menu**: right-click any widget (or the command below). Per-widget
+  on/off switches, overall opacity slider, "Reset positions", "Show all", "Hide all",
+  close. `Esc` closes it.
+- **Hover X** hides a single widget without opening the menu.
+
+Open the menu with `ambxst run desktop-widgets` (bind it to a key, e.g. `SUPER+ALT+W`):
+
+```lua
+hl.bind("SUPER + ALT + W", hl.dsp.exec_cmd("ambxst run desktop-widgets"))
+```
 
 ---
 
