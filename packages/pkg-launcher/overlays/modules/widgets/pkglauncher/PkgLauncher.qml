@@ -50,16 +50,46 @@ PanelWindow {
     // AUR helper (paru or yay), loaded from mod settings once available;
     // falls back to paru when settings have not been read yet.
     property string aurHelper: "paru"
+    // Binary presence, checked once after the settings load resolves the name.
+    property bool helperMissing: false
+
+    function checkHelper() {
+        helperProc.command = ["bash", "-c", "command -v \"$1\" >/dev/null 2>&1 && echo yes || echo no", "_", root.aurHelper];
+        helperProc.running = true;
+    }
 
     Component.onCompleted: {
         ModsService.getSettings("and0null.pkg-launcher", (settings, error) => {
-            if (!error && settings && settings.values && settings.values.aurHelper)
+            if (!error && settings && settings.values && settings.values.aurHelper) {
                 root.aurHelper = String(settings.values.aurHelper);
+                root.checkHelper();
+            }
         });
+    }
+
+    Process {
+        id: helperProc
+        command: []
+        stdout: StdioCollector {
+            id: helperOut
+            waitForEnd: true
+        }
+        onExited: function() {
+            var exists = String(helperOut.text).trim() === "yes";
+            root.helperMissing = !exists;
+        }
     }
 
     function alpha(c, a) {
         return Qt.rgba(c.r, c.g, c.b, a);
+    }
+
+    // Compose the status line, prefixing the missing-helper warning when relevant
+    // (every code path that writes status funnels through here).
+    function setStatus(main) {
+        root.status = root.helperMissing
+            ? main + "  ·  " + root.aurHelper + " not found — AUR disabled"
+            : main;
     }
 
     function closeLauncher() {
@@ -80,11 +110,12 @@ PanelWindow {
             // when there is nothing to upgrade: count lines, ignore the code).
             root.updates = ({});
             updRepoProc.running = true;
-            updAurProc.running = true;
+            if (!root.helperMissing)
+                updAurProc.running = true;
             // Show the cached installed list instantly, refresh it in background.
             if (root.installedList.length > 0) {
                 root.results = root.installedList;
-                root.status = root.installedList.length + " installed";
+                root.setStatus(root.installedList.length + " installed");
             }
             installedProc.running = true;
             Qt.callLater(function() {
@@ -144,7 +175,7 @@ PanelWindow {
     function finishStatus() {
         if (root.repoDone && root.aurDone) {
             root.searching = false;
-            root.status = root.results.length === 0 ? "No results" : (root.results.length + " packages");
+            root.setStatus(root.results.length === 0 ? "No results" : (root.results.length + " packages"));
         }
     }
 
@@ -252,23 +283,26 @@ PanelWindow {
             root.results = root.installedList;
             root.selected = 0;
             root.searching = false;
-            root.status = root.installedList.length > 0 ? (root.installedList.length + " installed") : "";
+            root.setStatus(root.installedList.length > 0 ? (root.installedList.length + " installed") : "");
             infoDebounce.restart();
             return;
         }
         var gen = root.searchGen;
         root.searching = true;
         root.repoDone = false;
-        root.aurDone = false;
+        // Missing helper: skip the AUR leg entirely instead of failing.
+        root.aurDone = root.helperMissing;
         root.status = "Searching…";
         // The query is passed as an argument (never interpolated into the
         // shell string) so any characters stay safe.
         repoProc.gen = gen;
         repoProc.command = ["bash", "-c", "exec pacman -Ss --color never \"$1\"", "_", q];
         repoProc.running = true;
-        aurProc.gen = gen;
-        aurProc.command = ["bash", "-c", "exec " + root.aurHelper + " -Ss --color never \"$1\"", "_", q];
-        aurProc.running = true;
+        if (!root.helperMissing) {
+            aurProc.gen = gen;
+            aurProc.command = ["bash", "-c", "exec " + root.aurHelper + " -Ss --color never \"$1\"", "_", q];
+            aurProc.running = true;
+        }
     }
 
     // Repo search (instant, local sync db).
@@ -284,7 +318,7 @@ PanelWindow {
             root.repoDone = true;
             if (code !== 0 || root.searchGen !== repoProc.gen) {
                 if (code !== 0)
-                    root.status = "pacman failed (exit " + code + ")";
+                    root.setStatus("pacman failed (exit " + code + ")");
                 root.finishStatus();
                 return;
             }
@@ -310,7 +344,7 @@ PanelWindow {
             root.aurDone = true;
             if (code !== 0 || root.searchGen !== aurProc.gen) {
                 if (code !== 0)
-                    root.status = root.aurHelper + " failed (exit " + code + ")";
+                    root.setStatus(root.aurHelper + " failed (exit " + code + ")");
                 root.finishStatus();
                 return;
             }
@@ -429,7 +463,7 @@ PanelWindow {
             root.installedList = root.sortResults(root.parseInstalled(installedOut.text), "");
             if (root.query.trim() === "") {
                 root.results = root.installedList;
-                root.status = root.installedList.length + " installed";
+                root.setStatus(root.installedList.length + " installed");
                 root.selected = 0;
                 infoDebounce.restart();
             }
@@ -440,6 +474,10 @@ PanelWindow {
         var r = root.results[root.selected];
         if (!r)
             return;
+        if (r.repo === "aur" && root.helperMissing) {
+            root.setStatus("Cannot install: " + root.aurHelper + " is not installed");
+            return;
+        }
         // The helper handles repo + AUR and asks for the sudo password in its
         // own terminal; `exec $SHELL` keeps it open so the result is visible.
         TerminalService.execDetached(root.aurHelper + " -S " + r.name + "; exec $SHELL");
@@ -448,6 +486,10 @@ PanelWindow {
 
     // Update everything (repos + AUR) in a terminal, same as the updates button.
     function updateAll() {
+        if (root.helperMissing) {
+            root.setStatus("Cannot update: " + root.aurHelper + " is not installed");
+            return;
+        }
         TerminalService.execDetached(root.aurHelper + " -Syu; exec $SHELL");
         root.closeLauncher();
     }
@@ -456,6 +498,10 @@ PanelWindow {
         var r = root.results[root.selected];
         if (!r || !r.installed)
             return;
+        if (root.helperMissing) {
+            root.setStatus("Cannot remove: " + root.aurHelper + " is not installed");
+            return;
+        }
         // The helper asks for confirmation in the terminal before removing anything.
         TerminalService.execDetached(root.aurHelper + " -Rns " + r.name + "; exec $SHELL");
         root.closeLauncher();
