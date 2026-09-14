@@ -7,8 +7,9 @@ import qs.modules.theme
 import qs.modules.services
 
 // pacseek-style package launcher. Searches the sync repos (pacman, instant)
-// and the AUR (paru) live, shows installed state, and hands off install/remove
-// to an interactive terminal so paru handles the sudo prompt and progress.
+// and the AUR (via the configured helper, paru by default) live, shows
+// installed state, and hands off install/remove to an interactive terminal so
+// the helper handles the sudo prompt and progress.
 // Actions never run unsupervised here; the terminal owns the transaction.
 PanelWindow {
     id: root
@@ -45,6 +46,17 @@ PanelWindow {
     property var updates: ({})
     // Explicitly installed packages, shown while the query is empty (browse view).
     property var installedList: []
+
+    // AUR helper (paru or yay), loaded from mod settings once available;
+    // falls back to paru when settings have not been read yet.
+    property string aurHelper: "paru"
+
+    Component.onCompleted: {
+        ModsService.getSettings("and0null.pkg-launcher", (settings, error) => {
+            if (!error && settings && settings.values && settings.values.aurHelper)
+                root.aurHelper = String(settings.values.aurHelper);
+        });
+    }
 
     function alpha(c, a) {
         return Qt.rgba(c.r, c.g, c.b, a);
@@ -93,7 +105,7 @@ PanelWindow {
         resultsList.positionViewAtIndex(next, ListView.Contain);
     }
 
-    // Parse `pacman -Ss` / `paru -Ss` output:
+    // Parse `pacman -Ss` / `<helper> -Ss` output:
     //   repo/name 1.2.3-1 [installed]
     //       description line
     // Plain string ops on purpose: regex literals are fragile inside QML's JS
@@ -114,7 +126,7 @@ PanelWindow {
                         repo: line.slice(0, slash),
                         name: line.slice(slash + 1, sp),
                         version: vparts[0] || "",
-                        // pacman prints "[installed]", paru prints "[Installed]".
+                        // pacman prints "[installed]", the helper prints "[Installed]".
                         installed: rest.toLowerCase().indexOf("[installed") !== -1,
                         description: ""
                     };
@@ -172,7 +184,7 @@ PanelWindow {
         return rows;
     }
 
-    // "Field : value" from `paru -Si`; wrapped lines are indented. String ops
+    // "Field : value" from `<helper> -Si`; wrapped lines are indented. String ops
     // only — regex literals are unreliable inside QML's JS engine.
     function parseInfo(text) {
         var out = ({});
@@ -216,7 +228,7 @@ PanelWindow {
         return rows;
     }
 
-    // Lazily fetch `paru -Si` for the selected package (works for repos and AUR).
+    // Lazily fetch `<helper> -Si` for the selected package (works for repos and AUR).
     function loadDetails() {
         var r = root.results[root.selected];
         if (!r) {
@@ -228,7 +240,7 @@ PanelWindow {
             return;
         root.detailsName = r.name;
         root.details = ({});
-        infoProc.command = ["bash", "-c", "exec paru -Si --color never \"$1\"", "_", r.name];
+        infoProc.command = ["bash", "-c", "exec " + root.aurHelper + " -Si --color never \"$1\"", "_", r.name];
         infoProc.running = true;
     }
 
@@ -255,7 +267,7 @@ PanelWindow {
         repoProc.command = ["bash", "-c", "exec pacman -Ss --color never \"$1\"", "_", q];
         repoProc.running = true;
         aurProc.gen = gen;
-        aurProc.command = ["bash", "-c", "exec paru -Ss --color never \"$1\"", "_", q];
+        aurProc.command = ["bash", "-c", "exec " + root.aurHelper + " -Ss --color never \"$1\"", "_", q];
         aurProc.running = true;
     }
 
@@ -298,7 +310,7 @@ PanelWindow {
             root.aurDone = true;
             if (code !== 0 || root.searchGen !== aurProc.gen) {
                 if (code !== 0)
-                    root.status = "paru failed (exit " + code + ")";
+                    root.status = root.aurHelper + " failed (exit " + code + ")";
                 root.finishStatus();
                 return;
             }
@@ -329,7 +341,7 @@ PanelWindow {
         return out;
     }
 
-    // "name 1.2-1 -> 1.3-1" from `pacman -Qu` / `paru -Qua`.
+    // "name 1.2-1 -> 1.3-1" from `pacman -Qu` / `<helper> -Qua`.
     function parseUpdates(text) {
         var out = ({});
         var lines = String(text || "").split("\n");
@@ -350,7 +362,7 @@ PanelWindow {
         root.updates = merged;
     }
 
-    // Details fetch (debounced: arrow navigation must not spam paru -Si).
+    // Details fetch (debounced: arrow navigation must not spam <helper> -Si).
     Timer {
         id: infoDebounce
         interval: 180
@@ -377,8 +389,8 @@ PanelWindow {
         }
     }
 
-    // Pending upgrades: repo (pacman -Qu) and AUR (paru -Qua). Both exit 1 when
-    // there is nothing to upgrade, so the exit code is deliberately ignored.
+    // Pending upgrades: repo (pacman -Qu) and AUR (<helper> -Qua). Both exit 1
+    // when there is nothing to upgrade, so the exit code is deliberately ignored.
     Process {
         id: updRepoProc
         command: ["bash", "-c", "exec pacman -Qu --color never 2>/dev/null"]
@@ -393,7 +405,7 @@ PanelWindow {
 
     Process {
         id: updAurProc
-        command: ["bash", "-c", "exec paru -Qua --color never 2>/dev/null"]
+        command: ["bash", "-c", "exec " + root.aurHelper + " -Qua --color never 2>/dev/null"]
         stdout: StdioCollector {
             id: updAurOut
             waitForEnd: true
@@ -428,15 +440,15 @@ PanelWindow {
         var r = root.results[root.selected];
         if (!r)
             return;
-        // paru handles repo + AUR and asks for the sudo password in its own
-        // terminal; `exec $SHELL` keeps it open so the result is visible.
-        TerminalService.execDetached("paru -S " + r.name + "; exec $SHELL");
+        // The helper handles repo + AUR and asks for the sudo password in its
+        // own terminal; `exec $SHELL` keeps it open so the result is visible.
+        TerminalService.execDetached(root.aurHelper + " -S " + r.name + "; exec $SHELL");
         root.closeLauncher();
     }
 
     // Update everything (repos + AUR) in a terminal, same as the updates button.
     function updateAll() {
-        TerminalService.execDetached("paru -Syu; exec $SHELL");
+        TerminalService.execDetached(root.aurHelper + " -Syu; exec $SHELL");
         root.closeLauncher();
     }
 
@@ -444,8 +456,8 @@ PanelWindow {
         var r = root.results[root.selected];
         if (!r || !r.installed)
             return;
-        // paru asks for confirmation in the terminal before removing anything.
-        TerminalService.execDetached("paru -Rns " + r.name + "; exec $SHELL");
+        // The helper asks for confirmation in the terminal before removing anything.
+        TerminalService.execDetached(root.aurHelper + " -Rns " + r.name + "; exec $SHELL");
         root.closeLauncher();
     }
 
@@ -702,7 +714,7 @@ PanelWindow {
                     }
             }
 
-                // Details pane (lazy `paru -Si` for the selected package).
+                // Details pane (lazy `<helper> -Si` for the selected package).
                 Rectangle {
                     width: parent.width - resultsList.width - parent.spacing
                     height: parent.height
