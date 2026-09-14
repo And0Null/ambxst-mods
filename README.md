@@ -63,6 +63,18 @@ Or launch it from any app launcher/menu — drop the
   ambxst reload
   ```
 
+- **You installed an old release under the `and00pium.` id** (the repo was renamed
+  to `And0Null` and the mod id became `and0null.pkg-launcher`). Ambxst refuses the
+  id change on update — `ambxst mods update` prints `Error: updated package changed
+  its id`. Reinstall from the new URL instead:
+
+  ```bash
+  ambxst mods remove and00pium.pkg-launcher
+  ambxst mods install https://github.com/And0Null/ambxst-mods/tree/main/packages/pkg-launcher
+  ambxst mods enable and0null.pkg-launcher
+  ambxst reload
+  ```
+
 ### Screenshots
 
 Search with the details pane (here a repo package that's already installed):
