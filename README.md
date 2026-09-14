@@ -5,7 +5,7 @@ mod lives under `packages/<name>/` and installs straight from this repo — no c
 needed:
 
 ```bash
-ambxst mods install https://github.com/AndoNull/ambxst-mods/tree/main/packages/<name>
+ambxst mods install https://github.com/And0Null/ambxst-mods/tree/main/packages/<name>
 ambxst mods enable <mod-id>
 ```
 
@@ -14,7 +14,7 @@ later.
 
 ---
 
-## pkg-launcher — `and00pium.pkg-launcher` (v1.5.0)
+## pkg-launcher — `and0null.pkg-launcher` (v1.5.0)
 
 A pacseek-style package launcher for Ambxst: type to search the sync repos (`pacman`)
 and the AUR (`paru`) live, browse what you already have installed, and hand
@@ -22,8 +22,8 @@ install/remove/update off to an interactive terminal where `paru` owns the sudo 
 and the progress output.
 
 ```bash
-ambxst mods install https://github.com/AndoNull/ambxst-mods/tree/main/packages/pkg-launcher
-ambxst mods enable and00pium.pkg-launcher
+ambxst mods install https://github.com/And0Null/ambxst-mods/tree/main/packages/pkg-launcher
+ambxst mods enable and0null.pkg-launcher
 ```
 
 Open it with `ambxst run pkg-launcher`. There is **no default keybind** — bind it
@@ -43,7 +43,7 @@ Or launch it from any app launcher/menu — drop the
   the shell was rebuilt after installing:
 
   ```bash
-  ambxst mods enable and00pium.pkg-launcher
+  ambxst mods enable and0null.pkg-launcher
   ambxst reload
   ```
 
@@ -104,40 +104,63 @@ AUR variants, with votes / popularity / maintainer / deps:
 
 ---
 
-## desktop-widgets — `and00pium.desktop-widgets` (v0.1.0)
+## desktop-widgets — `and0null.desktop-widgets` (v1.1.0)
 
-Rainmeter-style floating desktop widgets for Ambxst: a clock, a month calendar, a
-weather card and a system-info card that live on the Wayland **background layer** —
-above the wallpaper, below every window and the bar. Drag them anywhere by hand;
-their positions are remembered.
+Widgets on your desktop, not in the dashboard: a clock, a month calendar, a weather
+card and a system card (CPU/temp/RAM, and GPU when detected) floating in liquid-glass
+cards on an input-transparent **Bottom layer** — above the wallpaper, under every
+window, like desktop icons. They step aside while a fullscreen window owns the
+output, and a management menu adds/removes widgets, sets their opacity and toggles a
+drag-to-move edit mode.
 
 ```bash
-ambxst mods install https://github.com/AndoNull/ambxst-mods/tree/main/packages/desktop-widgets
-ambxst mods enable and00pium.desktop-widgets
+ambxst mods install https://github.com/And0Null/ambxst-mods/tree/main/packages/desktop-widgets
+ambxst mods enable and0null.desktop-widgets
 ```
 
-### Features
+### Widget types
 
-- **Four widgets**: big digital clock with the full date, month-grid calendar
-  (reuses Ambxst's dashboard calendar), weather card with a 3-day forecast strip
-  (reuses Ambxst's dashboard weather widget and WeatherService), and a
-  system-info card (CPU %, RAM %, battery, uptime — read from /proc).
-- **Draggable anywhere**: open-hand drag, snap-free; positions are stored as
-  *fractional* screen coordinates, so they survive resolution and layout changes.
-- **Persisted** in `~/.local/state/ambxst/desktop-widgets.json` on drag end and on
-  every menu change, debounced so drags don't thrash the disk.
-- **Per-screen setup**: each monitor lives independently (per-screen positions and
-  enable flags).
-- **Management menu**: right-click any widget (or the command below). Per-widget
-  on/off switches, overall opacity slider, "Reset positions", "Show all", "Hide all",
-  close. `Esc` closes it.
-- **Hover X** hides a single widget without opening the menu.
+- `clock` — big time, long date, year.
+- `calendar` — the dashboard's month-grid calendar, reused as-is.
+- `weather` — current condition, temperature, wind and sunrise/sunset from
+  Ambxst's WeatherService.
+- `system` — CPU (with temperature), RAM and GPU usage as labelled bars.
 
-Open the menu with `ambxst run desktop-widgets` (bind it to a key, e.g. `SUPER+ALT+W`):
+### Layout file
+
+The layout lives in `~/.config/ambxst/desktop-widgets.json`. Positions are
+*fractions* of the screen, so one layout fits every monitor; `enabled: false` keeps
+a widget (with its position) hidden instead of deleted:
+
+```json
+{
+    "opacity": 0.42,
+    "widgets": [
+        { "type": "clock", "x": 0.04, "y": 0.06, "w": 280, "h": 190, "enabled": true },
+        { "type": "calendar", "x": 0.68, "y": 0.72, "w": 360, "h": 360, "enabled": true },
+        { "type": "group", "x": 0.04, "y": 0.7, "w": 300, "h": 240, "children": ["system", "weather"] }
+    ]
+}
+```
+
+The menu and the drag flow write every change back through the service (debounced
+during drags, saved on drag end).
+
+### Managing widgets
+
+Open the management menu with `ambxst run desktop-widgets` (bind it to a key, e.g.
+`SUPER+ALT+W`):
 
 ```lua
 hl.bind("SUPER + ALT + W", hl.dsp.exec_cmd("ambxst run desktop-widgets"))
 ```
+
+From there you can toggle each widget's visibility, remove it, add clock/calendar/
+weather/system widgets, set the card opacity with a slider, reset to the default
+layout or hit **Done**. `Esc` closes the menu.
+
+To move widgets around, flip **Edit layout** on: cards get a highlighted border and
+become draggable (open-hand cursor); drag them, then click **Done** to commit.
 
 ---
 
@@ -146,9 +169,11 @@ hl.bind("SUPER + ALT + W", hl.dsp.exec_cmd("ambxst run desktop-widgets"))
 - **Tested on base commit** `af9f8ad4` (listed in the manifest). Ambxst updates can move
   the patched lines.
 - **Patches.** This mod patches `modules/services/Visibilities.qml`,
-  `modules/services/GlobalShortcuts.qml` and `shell.qml`. Ambxst keeps two mods that only
-  *insert* lines at the same anchor, but two mods that rewrite the *same existing lines*
-  stop the build — check for overlaps before stacking mods.
+  `modules/services/GlobalShortcuts.qml` and `shell.qml`. Two mods inserting at
+  *different* anchors compose; two hunks that share context lines do not, even when both
+  only insert. That is why the Visibilities module name is registered at runtime by the
+  service instead of being appended to `moduleNames` with a patch — pkg-launcher already
+  inserts there.
 
 ## License
 

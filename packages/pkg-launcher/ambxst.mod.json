@@ -1,12 +1,12 @@
 {
     "$schema": "https://raw.githubusercontent.com/Axenide/Ambxst/dev/docs/mods/manifest.schema.json",
     "manifestVersion": 1,
-    "id": "and00pium.pkg-launcher",
+    "id": "and0null.pkg-launcher",
     "name": "Package launcher (pacseek-style)",
     "version": "1.5.0",
     "description": "Launcher-style package overlay: live search across the sync repos (pacman) and the AUR (paru), installed badges, and install/remove handed off to an interactive terminal where paru owns the sudo prompt and progress. Keyboard-first: type, arrows, Enter installs, Ctrl+D removes. Opened via the pkg-launcher command (SUPER+SHIFT+P) or the IPC service.",
     "license": "MIT",
-    "author": "AndoNull",
+    "author": "And0Null",
     "compatibility": {
         "api": 1,
         "ambxst": ">=1.3.0 <1.4.0",

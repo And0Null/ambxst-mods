@@ -8,7 +8,7 @@ index ee97b092..c7d71605 100644
              property bool dashboard: false
 @@ -215,2 +216,7 @@ Singleton {
  
-+    // and00pium.pkg-launcher: registers the packages module without editing
++    // and0null.pkg-launcher: registers the packages module without editing
 +    // the moduleNames literal — the array is mutated in place, so this composes
 +    // with any other mod that appends to the same literal.
 +    Component.onCompleted: moduleNames.push("packages")
