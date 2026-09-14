@@ -14,17 +14,33 @@ later.
 
 ---
 
-## pkg-launcher — `and0null.pkg-launcher` (v1.5.0)
+## pkg-launcher — `and0null.pkg-launcher` (v1.6.0)
 
 A pacseek-style package launcher for Ambxst: type to search the sync repos (`pacman`)
-and the AUR (`paru`) live, browse what you already have installed, and hand
-install/remove/update off to an interactive terminal where `paru` owns the sudo prompt
-and the progress output.
+and the AUR live, browse what you already have installed, and hand install/remove/update
+off to an interactive terminal where your chosen AUR helper owns the sudo prompt and the
+progress output.
 
 ```bash
 ambxst mods install https://github.com/And0Null/ambxst-mods/tree/main/packages/pkg-launcher
 ambxst mods enable and0null.pkg-launcher
 ```
+
+### AUR helper: paru or yay (Settings)
+
+The AUR side runs through whichever helper you pick — **paru** (default) or **yay**.
+Pick it in **Ambxst Settings → Mods → Package launcher → AUR helper**, no config files
+to edit:
+
+1. Open Ambxst Settings, find the Package launcher mod, set **AUR helper** to `paru`
+   or `yay`.
+2. The setting needs a shell restart to take effect — run `ambxst reload` (Ambxst will
+   also tell you a rebuild/restart is needed).
+3. If the chosen binary is not installed, the launcher says so on open
+   (`<helper> not found — AUR disabled`) and keeps the `pacman` repo search working;
+   install/remove/update-all are blocked until you install the helper.
+
+Requirements: `pacman`, plus the helper you select (`paru` or `yay`).
 
 Open it with `ambxst run pkg-launcher`. There is **no default keybind** — bind it
 yourself, e.g. `SUPER+SHIFT+P`:
@@ -70,17 +86,19 @@ AUR variants, with votes / popularity / maintainer / deps:
   description-only matches. Alphabetical within each band.
 - **Details pane** for the selection: download/installed size and deps for repo
   packages; votes, popularity, maintainer and out-of-date flag for AUR packages; URL.
-  Fetched lazily with `paru -Si` (debounced).
+  Fetched lazily with `<helper> -Si` (debounced).
 - **Installed / update state**: `✓ instalado` badges, and `↑ <new-version>` when an
-  upgrade is pending (`pacman -Qu` + `paru -Qua`, refreshed on every open).
-- **Keyboard first**: `↵` install · `Ctrl+D` remove · `Ctrl+U` update all (`paru -Syu`)
+  upgrade is pending (`pacman -Qu` + `<helper> -Qua`, refreshed on every open).
+- **Keyboard first**: `↵` install · `Ctrl+D` remove · `Ctrl+U` update all (`<helper> -Syu`)
   · arrows navigate · `Esc` closes. Install/remove run in your terminal; the launcher
   never touches sudo itself.
 - **Empty query browses your installed packages** (explicit ones, repos + AUR).
 
 ### Requirements
 
-`paru` (used for search and every action) and `pacman`.
+`pacman`, plus the AUR helper selected in the mod's **Settings** (`paru`, the default,
+or `yay`). If the selected helper is missing, the launcher disables the AUR side with a
+clear message until you install it.
 
 ### Optional extras (`extras/`)
 
