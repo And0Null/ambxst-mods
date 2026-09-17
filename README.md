@@ -136,7 +136,7 @@ clear message until you install it.
 
 ---
 
-## desktop-widgets — `and0null.desktop-widgets` (v1.2.0, staging)
+## desktop-widgets — `and0null.desktop-widgets` (v1.2.1, staging)
 
 > **Not published yet.** This mod is still in `staging/` (gitignored), so the install
 > command below does not resolve until it moves to `packages/`.
@@ -164,7 +164,10 @@ ambxst mods enable and0null.desktop-widgets
 ### Layout file
 
 The layout lives in `~/.config/ambxst/desktop-widgets.json`. Positions are
-*fractions* of the screen, so one layout fits every monitor; `enabled: false` keeps
+*fractions* of the screen while card sizes are intrinsic pixels, so one layout follows
+every monitor: a card whose fractional position does not fit on a narrower output is
+clamped back onto it (8px off the edge) instead of hanging off the screen, while cards
+that do fit are drawn exactly where the fractions put them. `enabled: false` keeps
 a widget (with its position) hidden instead of deleted:
 
 ```json
@@ -196,6 +199,16 @@ layout or hit **Done**. `Esc` closes the menu.
 
 To move widgets around, flip **Edit layout** on: cards get a highlighted border and
 become draggable (open-hand cursor); drag them, then click **Done** to commit.
+
+### Verification
+
+The clamp is checked against real screens instead of by eye: capture the desktop with
+the cards drawn and again with every entry set to `enabled: false`, then diff the two
+PNGs — the differing pixels are exactly the cards, so their boxes can be measured. On a
+1920x1080 output paired with a 1366x768 panel the measured boxes match
+`x = min(entry.x · W, W − w − 8)` within 1px of antialiasing, and a card pushed to
+`x: 0.95, y: 0.95` lands 8px off the corner of the narrow screen instead of 291px
+outside it.
 
 ---
 
