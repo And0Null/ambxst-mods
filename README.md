@@ -136,7 +136,7 @@ clear message until you install it.
 
 ---
 
-## desktop-widgets — `and0null.desktop-widgets` (v1.4.0, staging)
+## desktop-widgets — `and0null.desktop-widgets` (v1.5.0, staging)
 
 > **Not published yet.** This mod is still in `staging/` (gitignored), so the install
 > command below does not resolve until it moves to `packages/`.
@@ -172,19 +172,27 @@ widget (with its position) hidden instead of deleted:
 
 ```json
 {
+    "design": "custom",
     "opacity": 0.42,
     "widgets": [
-        { "type": "clock", "ax": "left", "ox": 57, "ay": "top", "oy": 88, "w": 280, "h": 190, "enabled": true },
-        { "type": "calendar", "ax": "right", "ox": 46, "ay": "top", "oy": 372, "w": 360, "h": 360, "enabled": true },
-        { "type": "group", "ax": "left", "ox": 40, "ay": "bottom", "oy": 40, "w": 300, "h": 240, "children": ["system", "weather"] }
+        { "type": "clock", "ax": "left", "ox": 57, "ay": "top", "oy": 88, "w": 280, "h": 190, "enabled": true, "family": "full" },
+        { "type": "calendar", "ax": "center", "ox": 0, "ay": "bottom", "oy": 100, "w": 360, "h": 360, "enabled": true },
+        { "type": "group", "direction": "row", "ax": "left", "ox": 40, "ay": "top", "oy": 48, "w": 810, "h": 222,
+          "children": [{ "type": "system", "family": "full" }, "weather", "clock"] }
     ]
 }
 ```
 
-`ax` is `left`/`right`, `ay` is `top`/`bottom`, and `ox`/`oy` are pixels from those
-edges. A file that still stores screen *fractions* (`x`/`y`) is converted once, using
-the biggest connected output as the reference, so the placement you already had is
-preserved; the first change you make rewrites the file in the new shape.
+`ax` is `left`/`right`/`center` and `ay` is `top`/`bottom`/`center`, with `ox`/`oy` as
+pixels from those edges; `center` ignores the offset and pins the card to the middle of
+the output, which is what keeps it centred at any resolution. A `group` entry lays its
+`children` out as a `column` (default) or a `row`. `family` — per entry and per group
+child — is carried through the file for future widget variants; nothing reads it yet, but
+saving a layout never drops it. The top-level `design` field records which design the
+layout came from, or `custom` once it has been edited by hand. A file that still stores
+screen *fractions* (`x`/`y`) is converted once, using the biggest connected output as the
+reference, so the placement you already had is preserved; the first change you make
+rewrites the file in the new shape.
 
 The menu and the drag flow write every change back through the service (debounced
 during drags, saved on drag end). A drop stores the nearest edge on each axis, keeping
@@ -219,6 +227,29 @@ While you drag, the card snaps to the edges and centres of the other cards (and 
 with. That is the only way to get two cards exactly on the same line — hand-placed
 cards look hand-placed. Because the snap is stored as an anchor, two aligned cards stay
 aligned at every resolution.
+
+### Designs
+
+The arrangement comes from a **design**, applied in one click from the picker at the top
+of the menu: `Split` (four cards in the corners — the default), `Rail` (a column plus the
+calendar), `Studio` (one card holding clock, weather and system, plus the calendar),
+`Row` (the same three side by side), `Cluster` (a tight 2x2 block), `Minimal` (clock and
+calendar) and `Center` (a centred pair, top and bottom). Each button draws a real
+miniature of its design — the entries are placed with the same anchor arithmetic the
+desktop uses, on a 1920x1080 reference, then scaled down — so a preview cannot show
+something applying the design would not do.
+
+Designs are plain data (`DesktopWidgetsService.designs`), and every one of them has to
+obey rules that are checked against pixels rather than eyeballed:
+
+- **Fits the smallest desktop** (1366x768 here): a card that does not fit gets clamped and
+  overlaps its neighbour, so no design may rely on the clamp.
+- **Clears the bar**, which draws over the output and measured hides the first 45px: a
+  card's top starts at 48 at the earliest.
+- **Clears the dock**, which is not part of the widget layer: on a 768-tall output it
+  covers the last 71 rows of the middle ~520 columns, so a card overlapping that band has
+  to end above it.
+- **No overlaps**, and a group card must leave each child at least 200x150 to render in.
 
 **Align** lines up the layout you already have, in one click: per axis and anchor side,
 cards whose offsets differ by up to 40px are treated as an accident and share the
