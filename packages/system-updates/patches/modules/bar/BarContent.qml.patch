@@ -1,0 +1,35 @@
+diff --git i/modules/bar/BarContent.qml w/modules/bar/BarContent.qml
+index b9e57ca7..8da0d71f 100644
+--- i/modules/bar/BarContent.qml
++++ w/modules/bar/BarContent.qml
+@@ -520,6 +520,14 @@ Item {
+                             endRadius: root.innerRadius
+                         }
+ 
++                        UpdatesButton {
++                            id: updatesButton
++                            bar: root
++                            startRadius: root.innerRadius
++                            endRadius: root.innerRadius
++                            enableShadow: root.shadowsEnabled
++                        }
++
+                         ControlsButton {
+                             id: controlsButton
+                             bar: root
+@@ -727,6 +735,15 @@ Item {
+                             }
+                         }
+ 
++                        UpdatesButton {
++                            id: updatesButtonVert
++                            bar: root
++                            startRadius: root.outerRadius
++                            endRadius: root.innerRadius
++                            vertical: true
++                            enableShadow: root.shadowsEnabled
++                        }
++
+                         ControlsButton {
+                             id: controlsButtonVert
+                             bar: root
