@@ -1,0 +1,52 @@
+{
+    "$schema": "https://raw.githubusercontent.com/Axenide/Ambxst/dev/docs/mods/manifest.schema.json",
+    "manifestVersion": 1,
+    "id": "and0null.system-updates",
+    "name": "System updates bar button",
+    "version": "1.1.0",
+    "description": "Compact bar button showing pending system updates (pacman + AUR + flatpak). Left-click opens a management card with per-source counts, individual re-scan and update buttons, scan-all, update-all, a show-when-up-to-date toggle (green check in the bar) and per-source scan toggles. Right-click forces a full re-check.",
+    "license": "MIT",
+    "author": "And0Null",
+    "compatibility": {
+        "api": 1,
+        "ambxst": ">=1.3.0 <1.4.0",
+        "testedBaseCommits": ["af9f8ad4f42d7cd77f57a7c75f6a2a5d1fb59674"]
+    },
+    "dependencies": [],
+    "dependencySources": {},
+    "conflicts": [],
+    "commands": ["checkupdates"],
+    "permissions": [
+        "Runs `checkupdates` every refreshMinutes (default 30) to count pending pacman repo updates",
+        "Runs `paru -Qua` (recommended; optional) or `yay -Qua`/`checkupdates-aur` to count pending AUR updates",
+        "Runs `flatpak remote-ls --updates` only when flatpak is installed",
+        "Spawns a terminal via TerminalService.execDetached running per-source update commands (`sudo pacman -Syu`, `paru -Sua`, `flatpak update`) or the full `paru -Syu` + `flatpak update`",
+        "Adds a Top-layer management card per screen (keyboard focus only while the card is open)",
+        "Reads and writes its own mod settings (refreshMinutes, externalOnly, showWhenUpToDate, scanPacman, scanAur, scanFlatpak)"
+    ],
+    "operations": [
+        {
+            "type": "overlay",
+            "source": "overlays/modules/services/SystemUpdatesService.qml",
+            "target": "modules/services/SystemUpdatesService.qml"
+        },
+        {
+            "type": "overlay",
+            "source": "overlays/modules/bar/UpdatesButton.qml",
+            "target": "modules/bar/UpdatesButton.qml"
+        },
+        {
+            "type": "overlay",
+            "source": "overlays/modules/bar/UpdatesCard.qml",
+            "target": "modules/bar/UpdatesCard.qml"
+        },
+        {
+            "type": "patch",
+            "source": "patches/modules/bar/BarContent.qml.patch"
+        }
+    ],
+    "settings": {
+        "schema": "settings.json"
+    }
+}
+

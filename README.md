@@ -207,6 +207,70 @@ become draggable (open-hand cursor); drag them, then click **Done** to commit.
   service instead of being appended to `moduleNames` with a patch — pkg-launcher already
   inserts there.
 
+## system-updates — `and0null.system-updates` (v1.1.0)
+
+A compact bar button that shows pending system updates (pacman + AUR + flatpak), and
+only appears when there is something to do. Left-click opens a management card with a
+row per source (state, re-scan, on/off, update), **Scan all** / **Update all**, and a
+"show when up to date" option. Right-click forces a full re-check.
+
+```bash
+ambxst mods install https://github.com/And0Null/ambxst-mods/tree/main/packages/system-updates
+ambxst mods enable and0null.system-updates
+```
+
+### The card
+
+```
+pacman   12   ↻   [ On ]  [ Update ]
+AUR       3   ↻   [ On ]  [ Update ]
+flatpak   ✓   ↻   [ On ]  [ Off  ]
+[   Scan all   ]  [   Update all   ]
+Show in bar when up to date        [ On ]
+```
+
+- **Per source**: re-scan just that source, include it in the automatic scans, or update
+  it alone.
+- **Scan all / Update all** cover every enabled source.
+- **Show in bar when up to date**: off (default) hides the button when everything is up
+  to date; on keeps it with a green check.
+
+### Behavior
+
+- Scans shortly after the shell starts, then every `refreshMinutes` (default 30 —
+  change it in **Ambxst Settings → Mods → System updates**, along with
+  `externalOnly`).
+- Each source reports its own state: `off` when not scanned, `!` on failure, `–` when it
+  has never been scanned, the number when updates are pending, `✓` when it is up to
+  date. A failed or never-scanned source is never shown as up to date.
+- The updater runs in your terminal as a tracked child process, so the counts are
+  re-scanned when the terminal actually closes — not after a guessed delay. While an
+  update runs, further update clicks are ignored.
+- A local `pacman -Qu` poll notices updates applied outside the mod and refreshes the
+  counts.
+
+### Requirements
+
+`pacman` and `checkupdates` (pacman-contrib). The AUR row needs `paru` (preferred) or
+`yay`; the flatpak row appears only when flatpak is installed. Sources you do not use can
+be switched off in the card.
+
+### Verification
+
+`tests/run.sh` runs a behavioral test of the service against the real source under
+Quickshell, covering the per-source state machine and the update guard. It is
+falsifiable: breaking `sourceState()` fails the run. The mod was also loaded from a
+built generation on Ambxst 1.3.3 (`af9f8ad4`) with no QML errors or warnings.
+
+### Notes
+
+- Patch surface: **`modules/bar/BarContent.qml` only** (two insertions, for the
+  horizontal and vertical bar). The card reuses Ambxst's own `BarPopup`, so no
+  `Visibilities.qml` patch is needed.
+- The patch inserts at `@@ -520` / `@@ -727`; other mods that insert elsewhere in
+  `BarContent.qml` (e.g. desktop-widgets at `@@ -1016`) compose cleanly. Two hunks
+  sharing context lines would not.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).

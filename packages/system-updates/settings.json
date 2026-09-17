@@ -1,0 +1,56 @@
+{
+  "$schema": "https://raw.githubusercontent.com/Axenide/Ambxst/dev/docs/mods/settings.schema.json",
+  "version": 1,
+  "fields": [
+    {
+      "key": "refreshMinutes",
+      "label": "Refresh interval",
+      "description": "Minutes between update-count checks (checkupdates / paru -Qua / flatpak remote-ls --updates).",
+      "type": "integer",
+      "default": 30,
+      "minimum": 5,
+      "maximum": 240,
+      "restartRequired": false
+    },
+    {
+      "key": "externalOnly",
+      "label": "External monitors only",
+      "description": "Hide the updates button on internal laptop panels (screen names starting with eDP).",
+      "type": "boolean",
+      "default": false,
+      "restartRequired": false
+    },
+    {
+      "key": "showWhenUpToDate",
+      "label": "Show in bar when up to date",
+      "description": "Keep the bar button visible with a green check when there are no pending updates.",
+      "type": "boolean",
+      "default": false,
+      "restartRequired": false
+    },
+    {
+      "key": "scanPacman",
+      "label": "Scan pacman",
+      "description": "Include pacman repo packages in the automatic update counts.",
+      "type": "boolean",
+      "default": true,
+      "restartRequired": false
+    },
+    {
+      "key": "scanAur",
+      "label": "Scan AUR",
+      "description": "Include AUR updates (via the detected helper) in the automatic update counts.",
+      "type": "boolean",
+      "default": true,
+      "restartRequired": false
+    },
+    {
+      "key": "scanFlatpak",
+      "label": "Scan flatpak",
+      "description": "Include flatpak updates in the automatic update counts.",
+      "type": "boolean",
+      "default": true,
+      "restartRequired": false
+    }
+  ]
+}
