@@ -136,7 +136,7 @@ clear message until you install it.
 
 ---
 
-## desktop-widgets — `and0null.desktop-widgets` (v1.2.1, staging)
+## desktop-widgets — `and0null.desktop-widgets` (v1.3.0, staging)
 
 > **Not published yet.** This mod is still in `staging/` (gitignored), so the install
 > command below does not resolve until it moves to `packages/`.
@@ -163,26 +163,40 @@ ambxst mods enable and0null.desktop-widgets
 
 ### Layout file
 
-The layout lives in `~/.config/ambxst/desktop-widgets.json`. Positions are
-*fractions* of the screen while card sizes are intrinsic pixels, so one layout follows
-every monitor: a card whose fractional position does not fit on a narrower output is
-clamped back onto it (8px off the edge) instead of hanging off the screen, while cards
-that do fit are drawn exactly where the fractions put them. `enabled: false` keeps
-a widget (with its position) hidden instead of deleted:
+The layout lives in `~/.config/ambxst/desktop-widgets.json`. A card's position is an
+**anchor**: which edge it sticks to on each axis, plus its distance to that edge in
+pixels. Sizes and distances are intrinsic, so the layout — the gaps between cards and
+the margins to the screen edge — is the same on every resolution, on one monitor or
+several, and a 4K output does not spread the widgets apart. `enabled: false` keeps a
+widget (with its position) hidden instead of deleted:
 
 ```json
 {
     "opacity": 0.42,
     "widgets": [
-        { "type": "clock", "x": 0.04, "y": 0.06, "w": 280, "h": 190, "enabled": true },
-        { "type": "calendar", "x": 0.68, "y": 0.72, "w": 360, "h": 360, "enabled": true },
-        { "type": "group", "x": 0.04, "y": 0.7, "w": 300, "h": 240, "children": ["system", "weather"] }
+        { "type": "clock", "ax": "left", "ox": 57, "ay": "top", "oy": 88, "w": 280, "h": 190, "enabled": true },
+        { "type": "calendar", "ax": "right", "ox": 46, "ay": "top", "oy": 372, "w": 360, "h": 360, "enabled": true },
+        { "type": "group", "ax": "left", "ox": 40, "ay": "bottom", "oy": 40, "w": 300, "h": 240, "children": ["system", "weather"] }
     ]
 }
 ```
 
+`ax` is `left`/`right`, `ay` is `top`/`bottom`, and `ox`/`oy` are pixels from those
+edges. A file that still stores screen *fractions* (`x`/`y`) is converted once, using
+the biggest connected output as the reference, so the placement you already had is
+preserved; the first change you make rewrites the file in the new shape.
+
 The menu and the drag flow write every change back through the service (debounced
-during drags, saved on drag end).
+during drags, saved on drag end). A drop stores the nearest edge on each axis, keeping
+the side the card already had while it lands in the dead zone around the middle (half a
+card wide), so nudging a centred card cannot flip its anchor and move it on another
+output. Pixel distances mean the same thing everywhere, so dragging on one monitor can
+no longer change where a card sits on the other.
+
+On a screen too small for the layout's own distances (under ~740px tall for the
+calendar here) a card is clamped back on screen instead of hanging off the edge, and two
+cards can then touch: the arrangement takes the room it takes, and there is no scale
+that fits all of it everywhere.
 
 ### Managing widgets
 
@@ -202,13 +216,22 @@ become draggable (open-hand cursor); drag them, then click **Done** to commit.
 
 ### Verification
 
-The clamp is checked against real screens instead of by eye: capture the desktop with
-the cards drawn and again with every entry set to `enabled: false`, then diff the two
-PNGs — the differing pixels are exactly the cards, so their boxes can be measured. On a
-1920x1080 output paired with a 1366x768 panel the measured boxes match
-`x = min(entry.x · W, W − w − 8)` within 1px of antialiasing, and a card pushed to
-`x: 0.95, y: 0.95` lands 8px off the corner of the narrow screen instead of 291px
-outside it.
+Measured, not eyeballed: capture the output twice — cards drawn, then every entry set
+to `enabled: false` — and diff the two PNGs, because the differing pixels are exactly
+the cards, so their boxes can be measured. A headless output makes a repeatable bench
+(`hyprctl output create headless`, set its mode, capture its region, remove it). The
+same layout on it:
+
+| output | clock | weather | system (right margin) | calendar (right margin) |
+|---|---|---|---|---|
+| 1366x768 | 57,88 | 65,323 — 45px gap | 1007 (79px) | 960 (46px) |
+| 1920x1080 | 57,88 | 65,323 — 45px gap | 1561 (79px) | 1514 (46px) |
+| 2560x1440 | 57,88 | 65,323 — 45px gap | 2201 (79px) | 2154 (46px) |
+
+Every box matched the predicted anchor within 1px of antialiasing and the two left cards
+keep their 45px gap on all three. The same measurement taken on the previous
+fraction-based layout overlapped those two cards by 22px on the 1366x768 panel and
+pushed the calendar 71px off its right edge.
 
 ---
 
