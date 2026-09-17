@@ -136,7 +136,10 @@ clear message until you install it.
 
 ---
 
-## desktop-widgets — `and0null.desktop-widgets` (v1.1.0)
+## desktop-widgets — `and0null.desktop-widgets` (v1.2.0, staging)
+
+> **Not published yet.** This mod is still in `staging/` (gitignored), so the install
+> command below does not resolve until it moves to `packages/`.
 
 Widgets on your desktop, not in the dashboard: a clock, a month calendar, a weather
 card and a system card (CPU/temp/RAM, and GPU when detected) floating in liquid-glass
