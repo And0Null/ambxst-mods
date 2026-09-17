@@ -136,7 +136,7 @@ clear message until you install it.
 
 ---
 
-## desktop-widgets — `and0null.desktop-widgets` (v1.3.0, staging)
+## desktop-widgets — `and0null.desktop-widgets` (v1.4.0, staging)
 
 > **Not published yet.** This mod is still in `staging/` (gitignored), so the install
 > command below does not resolve until it moves to `packages/`.
@@ -213,6 +213,21 @@ layout or hit **Done**. `Esc` closes the menu.
 
 To move widgets around, flip **Edit layout** on: cards get a highlighted border and
 become draggable (open-hand cursor); drag them, then click **Done** to commit.
+
+While you drag, the card snaps to the edges and centres of the other cards (and to a
+40px screen margin) once it is within 6px, and a 1px guide line shows what it lined up
+with. That is the only way to get two cards exactly on the same line — hand-placed
+cards look hand-placed. Because the snap is stored as an anchor, two aligned cards stay
+aligned at every resolution.
+
+**Align** lines up the layout you already have, in one click: per axis and anchor side,
+cards whose offsets differ by up to 40px are treated as an accident and share the
+largest offset (so nothing moves closer to the screen edge), while cards further apart
+are a deliberate stack or another column and keep their own offsets.
+
+The **Card opacity** slider is the cards' own alpha: how much of the wallpaper shows
+through the glass. It fades the text along with the frame, and the glass's *colour* is
+not set here — that comes from the shell palette (`colors.json`).
 
 ### Verification
 
