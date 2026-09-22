@@ -136,7 +136,7 @@ clear message until you install it.
 
 ---
 
-## desktop-widgets — `and0null.desktop-widgets` (v1.7.0, staging)
+## desktop-widgets — `and0null.desktop-widgets` (v1.9.0, staging)
 
 > **Not published yet.** This mod is still in `staging/` (gitignored), so the install
 > command below does not resolve until it moves to `packages/`.
@@ -156,10 +156,82 @@ ambxst mods enable and0null.desktop-widgets
 ### Widget types
 
 - `clock` — big time, long date, year.
-- `calendar` — the dashboard's month-grid calendar, reused as-is.
+- `calendar` — the dashboard's month grid, reused as-is and **sized to the card**
+  instead of reimplemented, plus an **agenda** of your own calendars (any iCal/ICS feed).
+  See *The calendar is the dashboard's, given a size* and *Calendar events* below.
 - `weather` — current condition, temperature, wind and sunrise/sunset from
   Ambxst's WeatherService.
 - `system` — CPU (with temperature), RAM and GPU usage as labelled bars.
+
+### The calendar is the dashboard's, given a size
+
+The `calendar` card does not draw a grid of its own: it renders
+`qs.modules.widgets.dashboard.widgets.calendar` — the component the dashboard itself
+uses — so the month keeps the same `StyledRect` panes, fonts and today highlight as the
+rest of the shell. A second implementation of the same month would drift from that look
+the first time either one changed.
+
+What that component does not have is a size. Its metrics are fixed (32px title row, 28px
+day rows, `Styling.fontSize(-2)` for the digits), so it fills whatever box it is given but
+always draws the same grid: measured on a 360x360 card, the content reaches 249px and ends
+81px above the card's bottom edge — glass that stays empty however tall the card gets.
+
+`patches/calendar-scale.patch` adds one property to that panel and to its day cell —
+`metricScale`, defaulting to `1` — and multiplies every fixed metric by it. The dashboard
+leaves it at 1 and renders exactly as it always has (verified by pixel-diffing its own
+calendar), while this widget sets it from the card's size through the mod's shared rule
+(`WidgetType.typeScaleFor`). The reference is the calendar's normal card, **360x360**: a
+card that already looked right keeps rendering the base sizes, and only a bigger one grows
+the grid — a 540x540 card multiplies the cells and their digits by 1.5 (28px cells become
+42px) instead of adding another band of empty glass.
+
+### Calendar events
+
+`family` decides how much of the calendar arrives, and the card's height decides how much
+of that fits:
+
+| family | card | what it draws |
+|---|---|---|
+| `full` | 360x360 | the month grid, exactly as it has always rendered |
+| `detailed` | 720x400 | the month grid plus the **agenda**: the next events from today, one row each, with the colour of the calendar they come from |
+
+A `detailed` card smaller than 520x300 falls back to the plain grid: the agenda needs a
+square-ish grid (~220px at scale 1) plus a list column to be worth reading, and a row that
+does not fit is not drawn at all.
+
+The events come from **your own calendars, in one file**.
+`~/.config/ambxst/desktop-widgets-calendars.json` (mode **600** — a feed URL is a
+credential, and every other `~/.config/ambxst/*.json` is 644) holds a list of sources, each
+one a feed URL or a local `.ics`:
+
+```json
+{ "sources": [
+    { "name": "Personal", "color": "cyan",  "url":  "https://.../basic.ics", "enabled": true },
+    { "name": "Facu",     "color": "green", "path": "~/.local/share/ambxst/calendar/facu.ics", "enabled": true }
+] }
+```
+
+- **Any provider works, because the format is the same for all of them.** Google Calendar
+  gives a *Secret address in iCal format* per calendar; iCloud wants the calendar
+  **published** (*Public Calendar* → Share Link, a `webcal://` URL, read here as
+  `https://`); Outlook.com publishes an *ICS link* (a work admin can block it). Anything
+  else that hands you an iCal link or an export works unchanged — there is no provider code
+  in this mod.
+- **`name` and `color` are yours.** The colour is a NAME from the theme's palette
+  (`primary`, `secondary`, `tertiary`, `cyan`, `green`, `magenta`, `yellow`, `blue`, `red`,
+  `error`), never a hex, so it keeps matching the desktop after matugen regenerates the
+  palette from a new wallpaper; a source with no colour gets the next one in order.
+- **Merged by UID**: the same event arriving from two sources is one event, which is what
+  happens when a shared calendar is also subscribed.
+- **Nothing runs at idle.** A URL is fetched with an async `XMLHttpRequest` every 30
+  minutes; a local `.ics` is read through a `FileView` with `watchChanges`, so editing the
+  file updates the desktop. No daemon, no syncer.
+- **`TZID` is read as local wall time** — a deliberate limitation (`VTIMEZONE` is stepped
+  over, so an event created in another zone can land hours off), while `Z` times are
+  converted properly. Recurrences cover `DAILY`/`WEEKLY`/`MONTHLY`/`YEARLY` with
+  `INTERVAL`, `COUNT`, `UNTIL`, weekly `BYDAY`, monthly `BYMONTHDAY` (negative included),
+  `EXDATE` and `RDATE`, and the expansion is capped so a hostile rule cannot stall the UI
+  thread.
 
 ### Layout file
 
@@ -187,8 +259,10 @@ widget (with its position) hidden instead of deleted:
 pixels from those edges; `center` ignores the offset and pins the card to the middle of
 the output, which is what keeps it centred at any resolution. A `group` entry lays its
 `children` out as a `column` (default) or a `row`. `family` — per entry and per group
-child — is carried through the file for future widget variants; nothing reads it yet, but
-saving a layout never drops it. The top-level `design` field records which design the
+child — selects how much information a widget shows
+(`compact`, `full`, `detailed`): the clock, the weather card and the system card have
+three tiers each, while the calendar takes one and ignores it — its month grid has no
+honest smaller form. Saving a layout never drops it. The top-level `design` field records which design the
 layout came from, or `custom` once it has been edited by hand. A file that still stores
 screen *fractions* (`x`/`y`) is converted once, using the biggest connected output as the
 reference, so the placement you already had is preserved; the first change you make
@@ -261,6 +335,24 @@ through the glass. It fades the text along with the frame, and the glass's *colo
 not set here — that comes from the shell palette (`colors.json`).
 
 ### Verification
+
+The calendar's events carry their own harnesses, because a parser that only agrees with
+itself proves nothing:
+
+| what | command |
+|---|---|
+| the parser's cases (89 checks) | `node tests/ics-cases.js` |
+| the parser against a **second implementation** (python + dateutil) over a Google-shaped fixture | `TZ=America/Bogota python3 tests/ics-vs-oracle.py` |
+| which local days carry events, from the independent side | `TZ=America/Bogota python3 tests/expected-days.py` |
+| any card size and family, captured on a headless output | `python3 tests/calendar-scale-preview.py 720x400:detailed` |
+
+`ics-vs-oracle.py` is the one that matters: `ics-cases.js` checks hand-written
+expectations, while the oracle reads the same fixture with its own reader and expands
+recurrences with python-dateutil, so the two disagreeing is a finding. Sabotaging the
+span-aware day bucketing in a copy of `ics.js` makes it fail (5 days instead of 7), which
+is how the check itself is known to be able to fail. `calendar-scale-preview.py` stages a
+throwaway layout on a headless output, waits for the screen to settle, captures, and
+restores your layout byte-exact.
 
 Measured, not eyeballed: capture the output twice — cards drawn, then every entry set
 to `enabled: false` — and diff the two PNGs, because the differing pixels are exactly
