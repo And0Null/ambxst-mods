@@ -189,6 +189,12 @@ two optional properties to that panel and to its day cell:
 - **`showEventDots`** on the panel and **`eventDots`** on the cell, off and empty by default,
   so the dashboard's own calendar draws nothing new. The desktop calendar turns it on and
   hands each cell the colours of the calendars with something that day.
+- **A day-number fix in `layout.js`**: `getPrevMonthDays` answered "30 days" for the month
+  before August (July has 31), so **August's first row drew its July days one number early**
+  (`27 28 29 30` where the days are `28 29 30 31`). It is a bug in the shell, not in this
+  mod — found by the harness below, fixed here in one line (`new Date(year, month - 1, 0)
+  .getDate()`, which also drops the leap-year special case), and reported upstream so the
+  patch can go away when it lands there.
 
 ### Calendar events
 
@@ -230,11 +236,9 @@ one a feed URL or a local `.ics`:
   happens when a shared calendar is also subscribed.
 - **The month grid carries the same information**: one dot per calendar with something that
   day, up to three, along the bottom edge of the cell, and the dashboard's own calendar keeps
-  drawing none. Days of the neighbouring months shown in the grid get their dots too, and a
-  dot always follows the real date: in **August** the shell's `layout.js` draws its leading
-  July cells a day early (`getPrevMonthDays` answers 30 days for July — upstream bug, pinned
-  in `tests/calendar-cells.js`), so those particular dots sit under a number that is off by
-  one until that is fixed upstream.
+  drawing none. Days of the neighbouring months shown in the grid get their dots too, and
+  every dot follows the date the cell is really showing — which is why the day-number bug
+  described above had to be fixed and not worked around.
 - **Nothing runs at idle.** A URL is fetched with an async `XMLHttpRequest` every 30
   minutes; a local `.ics` is read through a `FileView` with `watchChanges`, so editing the
   file updates the desktop. No daemon, no syncer.
@@ -357,7 +361,7 @@ itself proves nothing:
 | the parser against a **second implementation** (python + dateutil) over a Google-shaped fixture | `TZ=America/Bogota python3 tests/ics-vs-oracle.py` |
 | which local days carry events, from the independent side | `TZ=America/Bogota python3 tests/expected-days.py` |
 | any card size and family, captured on a headless output | `python3 tests/calendar-scale-preview.py 720x400:detailed` |
-| the cell -> date mapping behind the dots: 96 months, 3 timezones, the formula **extracted from the shipped patch** | `node tests/calendar-cells.js` |
+| the cell -> date mapping behind the dots: 96 months, 3 timezones, the formula **extracted from the shipped patch**, checked against the `layout.js` of the deployed generation | `node tests/calendar-cells.js` |
 
 `ics-vs-oracle.py` is the one that matters: `ics-cases.js` checks hand-written
 expectations, while the oracle reads the same fixture with its own reader and expands
