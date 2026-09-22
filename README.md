@@ -136,7 +136,7 @@ clear message until you install it.
 
 ---
 
-## desktop-widgets — `and0null.desktop-widgets` (v1.8.0, staging)
+## desktop-widgets — `and0null.desktop-widgets` (v1.7.0, staging)
 
 > **Not published yet.** This mod is still in `staging/` (gitignored), so the install
 > command below does not resolve until it moves to `packages/`.
@@ -156,44 +156,10 @@ ambxst mods enable and0null.desktop-widgets
 ### Widget types
 
 - `clock` — big time, long date, year.
-- `calendar` — the month grid, and a week strip in the compact family. The month
-  arithmetic is the dashboard calendar's (`layout.js`, reused); the grid itself is this
-  mod's, so the cells are what scales with the card.
+- `calendar` — the dashboard's month-grid calendar, reused as-is.
 - `weather` — current condition, temperature, wind and sunrise/sunset from
   Ambxst's WeatherService.
 - `system` — CPU (with temperature), RAM and GPU usage as labelled bars.
-
-### Content families
-
-A card can ask for three amounts of information through `family`: `compact`, `full`
-(default) or `detailed`. They are three amounts of content, never the same thing made
-smaller — the height you give the card decides how much of it arrives.
-
-| widget | `compact` | `full` | `detailed` |
-|---|---|---|---|
-| `clock` | time and short date, one line | time, long date, year | + seconds and where the day sits (`Week 38 · Day 260`) |
-| `weather` | symbol, temperature, condition, one line | condition, today's range, wind, sun times | + the next six days as a strip |
-| `system` | CPU, RAM and GPU percentages, one line | the labelled bars: CPU with its temperature, RAM used/total, GPU usage | + the GPU's temperature, the CPU history as a sparkline, and the disk line on cards tall enough to pay for it |
-| `calendar` | the week in progress: seven day cells, today highlighted, the ISO week number beside them | the month grid: month and year with the two month arrows, the weekday row, six weeks of days, today highlighted and its week tinted | + the ISO week and the day of the year, on cards tall enough to pay for the line |
-
-**The type scale.** A card's size drives the type size. At a family's normal card size
-(280x80 for `compact`, 280x190 for the stacked ones, 360x360 for the calendar) the widget
-renders its base sizes — a card that already looked right keeps looking the same — and a
-taller card spends the extra height on **bigger text** instead of on more empty glass. Two
-limits keep that honest: the type is never shrunk below its base size, and it never grows
-past the width its longest line needs, so a date never elides out of the card. Very tall
-cards stop growing at that width cap.
-
-The calendar is the exception that proves the rule: a seven-column grid cannot elide a
-column the way a line of text can, so its cells are fitted to **both** axes by
-`WidgetType.blockScale()` — the same ceiling, but a grid on a card smaller than its normal
-one shrinks (the cells stay square and the whole month stays visible) instead of hanging
-out of the glass. Both rules live in `WidgetType.js`; `tests/type-scale.js` fails if a
-widget ships a private copy of either.
-
-Rows that only exist in `detailed` (the forecast strip, the sparkline, the disk line, the
-calendar's date line) are dropped when the card is too short for them once the type is
-scaled, instead of being squeezed in.
 
 ### Layout file
 
@@ -210,7 +176,7 @@ widget (with its position) hidden instead of deleted:
     "opacity": 0.42,
     "widgets": [
         { "type": "clock", "ax": "left", "ox": 57, "ay": "top", "oy": 88, "w": 280, "h": 190, "enabled": true, "family": "full" },
-        { "type": "calendar", "ax": "center", "ox": 0, "ay": "bottom", "oy": 100, "w": 360, "h": 360, "enabled": true, "family": "full" },
+        { "type": "calendar", "ax": "center", "ox": 0, "ay": "bottom", "oy": 100, "w": 360, "h": 360, "enabled": true },
         { "type": "group", "direction": "row", "ax": "left", "ox": 40, "ay": "top", "oy": 48, "w": 810, "h": 222,
           "children": [{ "type": "system", "family": "full" }, "weather", "clock"] }
     ]
@@ -252,11 +218,6 @@ hl.bind("SUPER + ALT + W", hl.dsp.exec_cmd("ambxst run desktop-widgets"))
 From there you can toggle each widget's visibility, remove it, add clock/calendar/
 weather/system widgets, set the card opacity with a slider, reset to the default
 layout or hit **Done**. `Esc` closes the menu.
-
-The calendar's two arrows move it a month at a time, and clicking the month name returns
-to the month in progress — the widget outlives the menu that opened it, so a shifted month
-would otherwise be a dead end. On the desktop, in the month grid, the week today sits in
-is tinted and the days from the neighbouring months are dimmed.
 
 To move widgets around, flip **Edit layout** on: cards get a highlighted border and
 become draggable (open-hand cursor); drag them, then click **Done** to commit.
