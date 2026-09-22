@@ -136,7 +136,7 @@ clear message until you install it.
 
 ---
 
-## desktop-widgets — `and0null.desktop-widgets` (v1.9.0, staging)
+## desktop-widgets — `and0null.desktop-widgets` (v1.10.0, staging)
 
 > **Not published yet.** This mod is still in `staging/` (gitignored), so the install
 > command below does not resolve until it moves to `packages/`.
@@ -176,14 +176,19 @@ day rows, `Styling.fontSize(-2)` for the digits), so it fills whatever box it is
 always draws the same grid: measured on a 360x360 card, the content reaches 249px and ends
 81px above the card's bottom edge — glass that stays empty however tall the card gets.
 
-`patches/calendar-scale.patch` adds one property to that panel and to its day cell —
-`metricScale`, defaulting to `1` — and multiplies every fixed metric by it. The dashboard
-leaves it at 1 and renders exactly as it always has (verified by pixel-diffing its own
-calendar), while this widget sets it from the card's size through the mod's shared rule
-(`WidgetType.typeScaleFor`). The reference is the calendar's normal card, **360x360**: a
-card that already looked right keeps rendering the base sizes, and only a bigger one grows
-the grid — a 540x540 card multiplies the cells and their digits by 1.5 (28px cells become
-42px) instead of adding another band of empty glass.
+`patches/calendar.patch` is the only thing this mod changes *inside* the shell, and it adds
+two optional properties to that panel and to its day cell:
+
+- **`metricScale`**, defaulting to `1`, multiplies every fixed metric. The dashboard leaves
+  it at 1 and renders exactly as it always has (verified by pixel-diffing its own calendar),
+  while this widget sets it from the card's size through the mod's shared rule
+  (`WidgetType.typeScaleFor`). The reference is the calendar's normal card, **360x360**: a
+  card that already looked right keeps rendering the base sizes, and only a bigger one grows
+  the grid — a 540x540 card multiplies the cells and their digits by 1.5 (28px cells become
+  42px) instead of adding another band of empty glass.
+- **`showEventDots`** on the panel and **`eventDots`** on the cell, off and empty by default,
+  so the dashboard's own calendar draws nothing new. The desktop calendar turns it on and
+  hands each cell the colours of the calendars with something that day.
 
 ### Calendar events
 
@@ -223,6 +228,13 @@ one a feed URL or a local `.ics`:
   palette from a new wallpaper; a source with no colour gets the next one in order.
 - **Merged by UID**: the same event arriving from two sources is one event, which is what
   happens when a shared calendar is also subscribed.
+- **The month grid carries the same information**: one dot per calendar with something that
+  day, up to three, along the bottom edge of the cell, and the dashboard's own calendar keeps
+  drawing none. Days of the neighbouring months shown in the grid get their dots too, and a
+  dot always follows the real date: in **August** the shell's `layout.js` draws its leading
+  July cells a day early (`getPrevMonthDays` answers 30 days for July — upstream bug, pinned
+  in `tests/calendar-cells.js`), so those particular dots sit under a number that is off by
+  one until that is fixed upstream.
 - **Nothing runs at idle.** A URL is fetched with an async `XMLHttpRequest` every 30
   minutes; a local `.ics` is read through a `FileView` with `watchChanges`, so editing the
   file updates the desktop. No daemon, no syncer.
@@ -345,6 +357,7 @@ itself proves nothing:
 | the parser against a **second implementation** (python + dateutil) over a Google-shaped fixture | `TZ=America/Bogota python3 tests/ics-vs-oracle.py` |
 | which local days carry events, from the independent side | `TZ=America/Bogota python3 tests/expected-days.py` |
 | any card size and family, captured on a headless output | `python3 tests/calendar-scale-preview.py 720x400:detailed` |
+| the cell -> date mapping behind the dots: 96 months, 3 timezones, the formula **extracted from the shipped patch** | `node tests/calendar-cells.js` |
 
 `ics-vs-oracle.py` is the one that matters: `ics-cases.js` checks hand-written
 expectations, while the oracle reads the same fixture with its own reader and expands
