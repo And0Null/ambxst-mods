@@ -136,7 +136,7 @@ clear message until you install it.
 
 ---
 
-## desktop-widgets — `and0null.desktop-widgets` (v1.10.0, staging)
+## desktop-widgets — `and0null.desktop-widgets` (v1.11.0, staging)
 
 > **Not published yet.** This mod is still in `staging/` (gitignored), so the install
 > command below does not resolve until it moves to `packages/`.
@@ -222,6 +222,24 @@ one a feed URL or a local `.ics`:
 ] }
 ```
 
+**Two doors, one model.** The file above is one way in; the second is the menu. Its
+*Calendars* section lists every source — colour, name, on/off switch, delete button — and
+adds one from a `Name` / `Link or .ics path` pair: a `webcal://` link is stored as
+`https://`, a duplicate is refused (paths are compared with `~` expanded), and anything
+that is not `https://`, `webcal://` or an absolute/`~` path is refused **with the reason**.
+Both doors edit the same file: the menu keeps no copy of anything, it writes the file and
+reads it back, so the UI and a hand-edited file cannot drift apart. The link is never shown
+in full either — just the host and the last characters, or the file name — because the
+shell's log is plain text, and the file keeps mode **600** across writes.
+
+**The menu never writes by itself.** Opening it, or reloading with it open, changes
+nothing. Before any edit the service checks that it is holding a successful read of the
+file; if the read has not finished, or the file is not the JSON it parses, the edit is
+refused with a message rather than written — a half-loaded list would otherwise replace
+every calendar in the file with nothing. That path has a harness of its own
+(`tests/calendar-menu-writes.py`, below), because the failure mode is silent and it
+destroys data.
+
 - **Any provider works, because the format is the same for all of them.** Google Calendar
   gives a *Secret address in iCal format* per calendar; iCloud wants the calendar
   **published** (*Public Calendar* → Share Link, a `webcal://` URL, read here as
@@ -306,8 +324,12 @@ hl.bind("SUPER + ALT + W", hl.dsp.exec_cmd("ambxst run desktop-widgets"))
 ```
 
 From there you can toggle each widget's visibility, remove it, add clock/calendar/
-weather/system widgets, set the card opacity with a slider, reset to the default
-layout or hit **Done**. `Esc` closes the menu.
+weather/system widgets, add and edit your calendars (see *Calendar events*), set the card
+opacity with a slider, reset to the default layout or hit **Done**. `Esc` closes the menu.
+
+The menu grows with what it holds and caps itself to the screen it opens on, scrolling past
+that: on the 1366x768 output the bottom few rows need a wheel scroll, and it never runs off
+the edge where its own title or **Done** would be unreachable.
 
 To move widgets around, flip **Edit layout** on: cards get a highlighted border and
 become draggable (open-hand cursor); drag them, then click **Done** to commit.
@@ -362,6 +384,14 @@ itself proves nothing:
 | which local days carry events, from the independent side | `TZ=America/Bogota python3 tests/expected-days.py` |
 | any card size and family, captured on a headless output | `python3 tests/calendar-scale-preview.py 720x400:detailed` |
 | the cell -> date mapping behind the dots: 96 months, 3 timezones, the formula **extracted from the shipped patch**, checked against the `layout.js` of the deployed generation | `node tests/calendar-cells.js` |
+| the sources file through the menu: opening the menu must write nothing, a real edit must write, a duplicate must be refused, and an **unparseable file must never be overwritten** | `python3 tests/calendar-menu-writes.py` |
+
+`calendar-menu-writes.py` runs each scenario against a throwaway `XDG_CONFIG_HOME`, so it
+cannot touch the real `~/.config/ambxst`, and it starts a probe that instantiates the
+management menu the way the shell does *and* performs the edit in the same process — both
+halves of the write path at once. Adding `--generation <dir>` points it at an older build,
+which is how the unparseable-file guard was shown to fix something real: against the build
+before it, the same scenario reports `wrote=True` and the calendars are gone.
 
 `ics-vs-oracle.py` is the one that matters: `ics-cases.js` checks hand-written
 expectations, while the oracle reads the same fixture with its own reader and expands
