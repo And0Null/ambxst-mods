@@ -330,7 +330,7 @@ opacity with a slider, reset to the default layout or hit **Done**. `Esc` closes
 The menu has **two shapes** and picks by screen: one column of 380px on a tall output, and
 two columns side by side — the widgets on the left, the calendars on the right, the footer
 across the bottom — when a single column would not fit the height. On this machine that is
-one column at 1920x1080 (827px tall with one calendar) and 808x587 on the 1366x768 output,
+one column at 1920x1080 (831px tall with one calendar) and 808x587 on the 1366x768 output,
 where the single column would have been 59px too tall and hidden **Done**. The numbers are
 measured, not guessed (`tests/desktop-widgets-menu-geometry.py` reads them back out of the
 menu and checks the live panel against them), the calendar rows are capped per shape (6 in
