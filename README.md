@@ -327,9 +327,16 @@ From there you can toggle each widget's visibility, remove it, add clock/calenda
 weather/system widgets, add and edit your calendars (see *Calendar events*), set the card
 opacity with a slider, reset to the default layout or hit **Done**. `Esc` closes the menu.
 
-The menu grows with what it holds and caps itself to the screen it opens on, scrolling past
-that: on the 1366x768 output the bottom few rows need a wheel scroll, and it never runs off
-the edge where its own title or **Done** would be unreachable.
+The menu has **two shapes** and picks by screen: one column of 380px on a tall output, and
+two columns side by side — the widgets on the left, the calendars on the right, the footer
+across the bottom — when a single column would not fit the height. On this machine that is
+one column at 1920x1080 (827px tall with one calendar) and 808x587 on the 1366x768 output,
+where the single column would have been 59px too tall and hidden **Done**. The numbers are
+measured, not guessed (`tests/desktop-widgets-menu-geometry.py` reads them back out of the
+menu and checks the live panel against them), the calendar rows are capped per shape (6 in
+one column, 4 in two) so neither shape grows with how many calendars are in the file, and a
+height cap plus a scroll region remain as the backstop if a screen is smaller still. A third
+column never happens: 1208px does not fit a 1366-wide output with its margins.
 
 To move widgets around, flip **Edit layout** on: cards get a highlighted border and
 become draggable (open-hand cursor); drag them, then click **Done** to commit.
@@ -385,6 +392,7 @@ itself proves nothing:
 | any card size and family, captured on a headless output | `python3 tests/calendar-scale-preview.py 720x400:detailed` |
 | the cell -> date mapping behind the dots: 96 months, 3 timezones, the formula **extracted from the shipped patch**, checked against the `layout.js` of the deployed generation | `node tests/calendar-cells.js` |
 | the sources file through the menu: opening the menu must write nothing, a real edit must write, a duplicate must be refused, and an **unparseable file must never be overwritten** | `python3 tests/calendar-menu-writes.py` |
+| the menu's shape per screen: the columns it picks, the width that implies, the height it is allowed and the live panel Hyprland reports — with the constants **read out of the shipped QML** | `python3 tests/desktop-widgets-menu-geometry.py` |
 
 `calendar-menu-writes.py` runs each scenario against a throwaway `XDG_CONFIG_HOME`, so it
 cannot touch the real `~/.config/ambxst`, and it starts a probe that instantiates the
