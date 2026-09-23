@@ -307,7 +307,9 @@ during drags, saved on drag end). A drop stores the nearest edge on each axis, k
 the side the card already had while it lands in the dead zone around the middle (half a
 card wide), so nudging a centred card cannot flip its anchor and move it on another
 output. Pixel distances mean the same thing everywhere, so dragging on one monitor can
-no longer change where a card sits on the other.
+no longer change where a card sits on the other. Opening the menu is not a write either:
+the opacity slider is bound to the service and fires when the file's value arrives, so the
+setter ignores a value it already has instead of saving the layout back untouched.
 
 On a screen too small for the layout's own distances (under ~740px tall for the
 calendar here) a card is clamped back on screen instead of hanging off the edge, and two
@@ -323,9 +325,20 @@ Open the management menu with `ambxst run desktop-widgets` (bind it to a key, e.
 hl.bind("SUPER + ALT + W", hl.dsp.exec_cmd("ambxst run desktop-widgets"))
 ```
 
-From there you can toggle each widget's visibility, remove it, add clock/calendar/
-weather/system widgets, add and edit your calendars (see *Calendar events*), set the card
-opacity with a slider, reset to the default layout or hit **Done**. `Esc` closes the menu.
+From there you can toggle each widget's visibility, pick its **content family** with the
+segmented switch on its row, remove it, add clock/calendar/weather/system widgets, add and
+edit your calendars (see *Calendar events*), set the card opacity with a slider, reset to
+the default layout or hit **Done**. `Esc` closes the menu.
+
+The family switch offers exactly the tiers each widget draws: three for the clock, the
+weather and the system cards, two for the calendar (it has no honest `compact` form), and
+none of its own for a group card, which draws its children instead — a group gives each
+child its own row and its own switch. A family this version does not know (a hand edit, or
+a design from a newer one) keeps its row with **no switch at all**: nothing is offered for
+a tier nothing draws, and the file keeps the value untouched. Two honest limits: a family
+does **not** resize a card — the card's height still decides how much of it fits, so a
+`detailed` tier on a short card falls back to the base layout — and re-applying a design
+resets families, the same deal visibility already has.
 
 The menu has **two shapes** and picks by screen: one column of 380px on a tall output, and
 two columns side by side — the widgets on the left, the calendars on the right, the footer
@@ -393,6 +406,7 @@ itself proves nothing:
 | the cell -> date mapping behind the dots: 96 months, 3 timezones, the formula **extracted from the shipped patch**, checked against the `layout.js` of the deployed generation | `node tests/calendar-cells.js` |
 | the sources file through the menu: opening the menu must write nothing, a real edit must write, a duplicate must be refused, and an **unparseable file must never be overwritten** | `python3 tests/calendar-menu-writes.py` |
 | the menu's shape per screen: the columns it picks, the width that implies, the height it is allowed and the live panel Hyprland reports — with the constants **read out of the shipped QML** | `python3 tests/desktop-widgets-menu-geometry.py` |
+| the content-family selector: the tiers the menu offers are the ones the widget QMLs draw, the switches sit on the file's families (group children included, unknown families offered nothing), a real click on an option writes, and an out-of-range index writes nothing | `python3 tests/widget-family-menu.py` |
 
 `calendar-menu-writes.py` runs each scenario against a throwaway `XDG_CONFIG_HOME`, so it
 cannot touch the real `~/.config/ambxst`, and it starts a probe that instantiates the
