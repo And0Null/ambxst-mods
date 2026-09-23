@@ -335,7 +335,12 @@ weather and the system cards, two for the calendar (it has no honest `compact` f
 none of its own for a group card, which draws its children instead — a group gives each
 child its own row and its own switch. A family this version does not know (a hand edit, or
 a design from a newer one) keeps its row with **no switch at all**: nothing is offered for
-a tier nothing draws, and the file keeps the value untouched. Two honest limits: a family
+a tier nothing draws, and the file keeps the value untouched. The switch itself is not the
+shell's stock `SegmentedSwitch`: that one measures its highlight from the selected button
+before the buttons exist, so it starts as a blob at the left edge and only lands right after
+the first click. It follows the pattern the shell's own settings panel uses instead (each
+selected label reports its own geometry), so the highlight is on the right label from the
+first frame and is exactly as wide as that label. Two honest limits: a family
 does **not** resize a card — the card's height still decides how much of it fits, so a
 `detailed` tier on a short card falls back to the base layout — and re-applying a design
 resets families, the same deal visibility already has.
@@ -406,7 +411,7 @@ itself proves nothing:
 | the cell -> date mapping behind the dots: 96 months, 3 timezones, the formula **extracted from the shipped patch**, checked against the `layout.js` of the deployed generation | `node tests/calendar-cells.js` |
 | the sources file through the menu: opening the menu must write nothing, a real edit must write, a duplicate must be refused, and an **unparseable file must never be overwritten** | `python3 tests/calendar-menu-writes.py` |
 | the menu's shape per screen: the columns it picks, the width that implies, the height it is allowed and the live panel Hyprland reports — with the constants **read out of the shipped QML** | `python3 tests/desktop-widgets-menu-geometry.py` |
-| the content-family selector: the tiers the menu offers are the ones the widget QMLs draw, the switches sit on the file's families (group children included, unknown families offered nothing), a real click on an option writes, and an out-of-range index writes nothing | `python3 tests/widget-family-menu.py` |
+| the content-family selector: the tiers the menu offers are the ones the widget QMLs draw, the switches sit on the file's families (group children included, unknown families offered nothing), a pick on an option writes through the control's own signal, and an out-of-range index writes nothing | `python3 tests/widget-family-menu.py` |
 
 `calendar-menu-writes.py` runs each scenario against a throwaway `XDG_CONFIG_HOME`, so it
 cannot touch the real `~/.config/ambxst`, and it starts a probe that instantiates the
