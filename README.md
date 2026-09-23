@@ -188,7 +188,7 @@ two optional properties to that panel and to its day cell:
   42px) instead of adding another band of empty glass.
 - **`showEventDots`** on the panel and **`eventDots`** on the cell, off and empty by default,
   so the dashboard's own calendar draws nothing new. The desktop calendar turns it on and
-  hands each cell the colours of the calendars with something that day.
+  hands each cell the colors of the calendars with something that day.
 - **A day-number fix in `layout.js`**: `getPrevMonthDays` answered "30 days" for the month
   before August (July has 31), so **August's first row drew its July days one number early**
   (`27 28 29 30` where the days are `28 29 30 31`). It is a bug in the shell, not in this
@@ -204,7 +204,7 @@ of that fits:
 | family | card | what it draws |
 |---|---|---|
 | `full` | 360x360 | the month grid, exactly as it has always rendered |
-| `detailed` | 720x400 | the month grid plus the **agenda**: the next events from today, one row each, with the colour of the calendar they come from |
+| `detailed` | 720x400 | the month grid plus the **agenda**: the next events from today, one row each, with the color of the calendar they come from |
 
 A `detailed` card smaller than 520x300 falls back to the plain grid: the agenda needs a
 square-ish grid (~220px at scale 1) plus a list column to be worth reading, and a row that
@@ -223,7 +223,7 @@ one a feed URL or a local `.ics`:
 ```
 
 **Two doors, one model.** The file above is one way in; the second is the menu. Its
-*Calendars* section lists every source — colour, name, on/off switch, delete button — and
+*Calendars* section lists every source — color, name, on/off switch, delete button — and
 adds one from a `Name` / `Link or .ics path` pair: a `webcal://` link is stored as
 `https://`, a duplicate is refused (paths are compared with `~` expanded), and anything
 that is not `https://`, `webcal://` or an absolute/`~` path is refused **with the reason**.
@@ -246,10 +246,10 @@ destroys data.
   `https://`); Outlook.com publishes an *ICS link* (a work admin can block it). Anything
   else that hands you an iCal link or an export works unchanged — there is no provider code
   in this mod.
-- **`name` and `color` are yours.** The colour is a NAME from the theme's palette
+- **`name` and `color` are yours.** The color is a NAME from the theme's palette
   (`primary`, `secondary`, `tertiary`, `cyan`, `green`, `magenta`, `yellow`, `blue`, `red`,
   `error`), never a hex, so it keeps matching the desktop after matugen regenerates the
-  palette from a new wallpaper; a source with no colour gets the next one in order.
+  palette from a new wallpaper; a source with no color gets the next one in order.
 - **Merged by UID**: the same event arriving from two sources is one event, which is what
   happens when a shared calendar is also subscribed.
 - **The month grid carries the same information**: one dot per calendar with something that
@@ -376,7 +376,7 @@ largest offset (so nothing moves closer to the screen edge), while cards further
 are a deliberate stack or another column and keep their own offsets.
 
 The **Card opacity** slider is the cards' own alpha: how much of the wallpaper shows
-through the glass. It fades the text along with the frame, and the glass's *colour* is
+through the glass. It fades the text along with the frame, and the glass's *color* is
 not set here — that comes from the shell palette (`colors.json`).
 
 ### Verification
