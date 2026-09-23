@@ -206,9 +206,11 @@ of that fits:
 | `full` | 360x360 | the month grid, exactly as it has always rendered |
 | `detailed` | 720x400 | the month grid plus the **agenda**: the next events from today, one row each, with the color of the calendar they come from |
 
-A `detailed` card smaller than 520x300 falls back to the plain grid: the agenda needs a
-square-ish grid (~220px at scale 1) plus a list column to be worth reading, and a row that
-does not fit is not drawn at all.
+A `detailed` card falls back to the plain grid when its **widget** is under 520x300 — the
+widget sees the card minus the frame's 16px per side, so that is a card of **552x332**. The
+agenda needs a square-ish grid (~220px at scale 1) plus a list column to be worth reading,
+and a row that does not fit is not drawn at all. Picking `detailed` for a smaller calendar
+grows it to exactly that (see *Managing widgets*).
 
 The events come from **your own calendars, in one file**.
 `~/.config/ambxst/desktop-widgets-calendars.json` (mode **600** — a feed URL is a
@@ -340,10 +342,16 @@ shell's stock `SegmentedSwitch`: that one measures its highlight from the select
 before the buttons exist, so it starts as a blob at the left edge and only lands right after
 the first click. It follows the pattern the shell's own settings panel uses instead (each
 selected label reports its own geometry), so the highlight is on the right label from the
-first frame and is exactly as wide as that label. Two honest limits: a family
-does **not** resize a card — the card's height still decides how much of it fits, so a
-`detailed` tier on a short card falls back to the base layout — and re-applying a design
-resets families, the same deal visibility already has.
+first frame and is exactly as wide as that label. Choosing a family **grows** a card that is under what that family
+needs, one dimension at a time and never shrinking one (with no free resize in the menu,
+there would be no way to undo an automatic shrink): the calendar's agenda needs a widget of
+520x300, so a smaller calendar card grows to 552x332, and the weather's six-day strip needs
+190px of height, so a shorter one grows to 222. Those are the only two gates the widgets
+declare — the clock draws its whole family at any size, and the system card drops rows as the
+height runs out on purpose — so nothing is forced for them, and a card that is already big
+enough keeps its size. Growth leaves the anchor alone, so a right-anchored card grows
+leftwards and keeps its distance from the edge. Re-applying a design resets families, the same
+deal visibility already has.
 
 The menu has **two shapes** and picks by screen: one column of 380px on a tall output, and
 two columns side by side — the widgets on the left, the calendars on the right, the footer
@@ -411,7 +419,7 @@ itself proves nothing:
 | the cell -> date mapping behind the dots: 96 months, 3 timezones, the formula **extracted from the shipped patch**, checked against the `layout.js` of the deployed generation | `node tests/calendar-cells.js` |
 | the sources file through the menu: opening the menu must write nothing, a real edit must write, a duplicate must be refused, and an **unparseable file must never be overwritten** | `python3 tests/calendar-menu-writes.py` |
 | the menu's shape per screen: the columns it picks, the width that implies, the height it is allowed and the live panel Hyprland reports — with the constants **read out of the shipped QML** | `python3 tests/desktop-widgets-menu-geometry.py` |
-| the content-family selector: the tiers the menu offers are the ones the widget QMLs draw, the switches sit on the file's families (group children included, unknown families offered nothing), a pick on an option writes through the control's own signal, and an out-of-range index writes nothing | `python3 tests/widget-family-menu.py` |
+| the content-family selector: the tiers the menu offers are the ones the widget QMLs draw, the switches sit on the file's families (group children included, unknown families offered nothing), a pick on an option writes through the control's own signal, an out-of-range index writes nothing, and the growth targets are the widgets' own gates plus the frame — read out of `WidgetFrame.qml` and out of each widget — with the calendar **asked** at the resulting size and answering `showAgenda=true` | `python3 tests/widget-family-menu.py` |
 
 `calendar-menu-writes.py` runs each scenario against a throwaway `XDG_CONFIG_HOME`, so it
 cannot touch the real `~/.config/ambxst`, and it starts a probe that instantiates the
