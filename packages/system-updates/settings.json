@@ -51,6 +51,14 @@
       "type": "boolean",
       "default": true,
       "restartRequired": false
+    },
+    {
+      "key": "scanMise",
+      "label": "Scan mise",
+      "description": "Include outdated mise tools from the global config (~/.config/mise/config.toml) in the automatic update counts.",
+      "type": "boolean",
+      "default": true,
+      "restartRequired": false
     }
   ]
 }

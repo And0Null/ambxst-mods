@@ -5,7 +5,7 @@ import Quickshell
 import Quickshell.Io
 import qs.modules.services
 
-// Counts pending system updates from pacman (repo), AUR, and flatpak.
+// Counts pending system updates from pacman (repo), AUR, flatpak and mise.
 // Driven by a Timer whose interval comes from the mod setting
 // `refreshMinutes` (default 15), plus an initial check ~30s after start.
 // A cheaper local poll (`pacman -Qu`, every 60s) detects when updates were
@@ -21,7 +21,8 @@ Singleton {
     property int pacman: 0
     property int aur: 0
     property int flatpak: 0
-    readonly property int total: pacman + aur + flatpak
+    property int mise: 0
+    readonly property int total: pacman + aur + flatpak + mise
     property bool loading: false
     property string lastError: ""
 
@@ -34,15 +35,18 @@ Singleton {
     property bool scanPacman: true
     property bool scanAur: true
     property bool scanFlatpak: true
+    property bool scanMise: true
 
     // Per-source result state. `known` stays false until a successful scan,
     // so an error or a never-scanned source is never reported as up to date.
     property bool pacmanKnown: false
     property bool aurKnown: false
     property bool flatpakKnown: false
+    property bool miseKnown: false
     property string pacmanError: ""
     property string aurError: ""
     property string flatpakError: ""
+    property string miseError: ""
 
     // "off" | "error" | "unknown" | "up" | "count" — drives the card display
     // and never reports success for a failed or unscanned source.
@@ -65,6 +69,15 @@ Singleton {
                 return "unknown";
             return root.aur > 0 ? "count" : "up";
         }
+        if (key === "mise") {
+            if (!root.scanMise)
+                return "off";
+            if (root.miseError !== "")
+                return "error";
+            if (!root.miseKnown)
+                return "unknown";
+            return root.mise > 0 ? "count" : "up";
+        }
         if (!root.scanFlatpak)
             return "off";
         if (root.flatpakError !== "")
@@ -79,6 +92,8 @@ Singleton {
             return root.pacman;
         if (key === "aur")
             return root.aur;
+        if (key === "mise")
+            return root.mise;
         return root.flatpak;
     }
 
@@ -91,6 +106,7 @@ Singleton {
                 root.scanPacman = settings.values.scanPacman !== false;
                 root.scanAur = settings.values.scanAur !== false;
                 root.scanFlatpak = settings.values.scanFlatpak !== false;
+                root.scanMise = settings.values.scanMise !== false;
             }
         });
     }
@@ -170,6 +186,24 @@ Singleton {
             root.flatpakError = "";
         }
 
+        if (root.scanMise) {
+            if (root.miseProbed) {
+                if (root.miseAvailable)
+                    _runMiseCheck();
+                else {
+                    root.mise = 0;
+                    root.miseKnown = true;
+                }
+            } else {
+                miseProbe.command = ["sh", "-c", "exec command -v mise"];
+                root._start(miseProbe);
+            }
+        } else {
+            root.mise = 0;
+            root.miseKnown = false;
+            root.miseError = "";
+        }
+
         // All sources disabled: nothing in flight, loading would stick.
         if (root._pending === 0)
             root.loading = false;
@@ -221,6 +255,27 @@ Singleton {
             root.loading = false;
     }
 
+    function checkMise() {
+        if (root._pending !== 0 || !root.scanMise)
+            return;
+        root.loading = true;
+        root.lastError = "";
+        if (root.miseProbed) {
+            if (root.miseAvailable)
+                _runMiseCheck();
+            else {
+                root.mise = 0;
+                root.miseKnown = true;
+            }
+        } else {
+            miseProbe.command = ["sh", "-c", "exec command -v mise"];
+            root._start(miseProbe);
+        }
+        // mise absent: nothing started, don't leave loading stuck.
+        if (root._pending === 0)
+            root.loading = false;
+    }
+
     function _runAurCheck() {
         // ponytail: no timeout watchdog; checks are read-only and bounded
         // in practice, add a kill-timer if a refresh ever hangs a bar.
@@ -240,6 +295,16 @@ Singleton {
     function _runFlatpakCheck() {
         flatpakCheck.command = ["sh", "-c", "exec flatpak remote-ls --updates"];
         root._start(flatpakCheck);
+    }
+
+    function _runMiseCheck() {
+        // -C "$HOME" pins the config scope: `mise outdated` also reads local
+        // mise.toml files from the cwd upward and the shell's cwd is not ours
+        // to choose, so -C $HOME yields exactly the global config list.
+        // All mise logs go to stderr; stdout holds only one line per outdated
+        // tool (empty when up to date) and the exit code is 0 either way.
+        miseCheck.command = ["sh", "-c", "exec mise -C \"$HOME\" outdated"];
+        root._start(miseCheck);
     }
 
     // Previous local count (pacman -Qu) used for drop detection; -1 means
@@ -291,9 +356,10 @@ Singleton {
     }
 
     // Update every source the mod counts. paru -Syu covers pacman repos + AUR;
-    // flatpak is updated too when installed.
+    // flatpak and mise are updated too when installed. mise runs with the same
+    // -C $HOME scope as the check, so it upgrades the global config only.
     function updateNow() {
-        _launchUpdate("paru -Syu; command -v flatpak >/dev/null 2>&1 && flatpak update");
+        _launchUpdate("paru -Syu; command -v flatpak >/dev/null 2>&1 && flatpak update; command -v mise >/dev/null 2>&1 && mise -C \"$HOME\" upgrade");
     }
 
     // Run a single-source update command (from the card's per-source button).
@@ -340,6 +406,8 @@ Singleton {
                 root.scanAur = !!value;
             else if (key === "scanFlatpak")
                 root.scanFlatpak = !!value;
+            else if (key === "scanMise")
+                root.scanMise = !!value;
         }
     }
 
@@ -494,6 +562,51 @@ Singleton {
                 root.flatpakKnown = false;
                 root.flatpakError = "flatpak remote-ls failed (exit " + code + ")";
                 root.lastError = root.flatpakError;
+            }
+            root._finish();
+        }
+    }
+
+    Process {
+        id: miseProbe
+        running: false
+        stdout: StdioCollector {
+            waitForEnd: true
+        }
+        onExited: function(code) {
+            root.miseProbed = true;
+            root.miseAvailable = code === 0;
+            if (root.miseAvailable) {
+                // Start the follow-up scan first, then release the probe slot,
+                // so `loading` never flickers false mid-check.
+                _runMiseCheck();
+                root._finish();
+            } else {
+                // No mise installed is a definite answer: zero updates.
+                root.mise = 0;
+                root.miseKnown = true;
+                root.miseError = "";
+                root._finish();
+            }
+        }
+    }
+
+    Process {
+        id: miseCheck
+        running: false
+        stdout: StdioCollector {
+            id: miseOut
+            waitForEnd: true
+        }
+        onExited: function(code) {
+            if (code === 0) {
+                root.mise = root._countLines(miseOut.text);
+                root.miseKnown = true;
+                root.miseError = "";
+            } else {
+                root.miseKnown = false;
+                root.miseError = "mise outdated failed (exit " + code + ")";
+                root.lastError = root.miseError;
             }
             root._finish();
         }

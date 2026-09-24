@@ -50,6 +50,7 @@ Item {
         tooltipText: "Updates · " + SystemUpdatesService.pacman + " pacman"
             + (SystemUpdatesService.aur > 0 ? (", " + SystemUpdatesService.aur + " AUR") : "")
             + (SystemUpdatesService.flatpak > 0 ? (", " + SystemUpdatesService.flatpak + " flatpak") : "")
+            + (SystemUpdatesService.mise > 0 ? (", " + SystemUpdatesService.mise + " mise") : "")
     }
 
     HoverHandler {
