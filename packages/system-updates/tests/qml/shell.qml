@@ -63,6 +63,39 @@ ShellRoot {
         svc.flatpak = 0;
         check("flatpak scanned, zero -> up", svc.sourceState("flatpak"), "up");
 
+        // mise mirrors the same state machine.
+        svc.scanMise = true;
+        svc.miseError = "";
+        svc.miseKnown = false;
+        check("mise never scanned -> unknown", svc.sourceState("mise"), "unknown");
+        svc.miseKnown = true;
+        svc.mise = 0;
+        check("mise scanned, zero -> up", svc.sourceState("mise"), "up");
+        svc.mise = 4;
+        check("mise pending -> count", svc.sourceState("mise"), "count");
+        check("mise count reported", svc.sourceCount("mise"), 4);
+        svc.scanMise = false;
+        check("mise disabled -> off", svc.sourceState("mise"), "off");
+
+        // The bar badge sums every source, mise included.
+        svc.scanPacman = true;
+        svc.pacman = 7;
+        svc.pacmanKnown = true;
+        svc.pacmanError = "";
+        svc.scanAur = true;
+        svc.aur = 2;
+        svc.aurKnown = true;
+        svc.aurError = "";
+        svc.scanFlatpak = true;
+        svc.flatpak = 1;
+        svc.flatpakKnown = true;
+        svc.flatpakError = "";
+        svc.scanMise = true;
+        svc.mise = 4;
+        svc.miseKnown = true;
+        svc.miseError = "";
+        check("total sums every source", svc.total, 14);
+
         // The updater must not spawn without a configured terminal.
         svc.lastError = "";
         svc.runUpdate("true");

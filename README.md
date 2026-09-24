@@ -466,9 +466,9 @@ pushed the calendar 71px off its right edge.
   service instead of being appended to `moduleNames` with a patch — pkg-launcher already
   inserts there.
 
-## system-updates — `and0null.system-updates` (v1.1.0)
+## system-updates — `and0null.system-updates` (v1.2.0)
 
-A compact bar button that shows pending system updates (pacman + AUR + flatpak), and
+A compact bar button that shows pending system updates (pacman + AUR + flatpak + mise), and
 only appears when there is something to do. Left-click opens a management card with a
 row per source (state, re-scan, on/off, update), **Scan all** / **Update all**, and a
 "show when up to date" option. Right-click forces a full re-check.
@@ -484,6 +484,7 @@ ambxst mods enable and0null.system-updates
 pacman   12   ↻   [ On ]  [ Update ]
 AUR       3   ↻   [ On ]  [ Update ]
 flatpak   ✓   ↻   [ On ]  [ Off  ]
+mise      2   ↻   [ On ]  [ Update ]
 [   Scan all   ]  [   Update all   ]
 Show in bar when up to date        [ On ]
 ```
@@ -507,18 +508,26 @@ Show in bar when up to date        [ On ]
   update runs, further update clicks are ignored.
 - A local `pacman -Qu` poll notices updates applied outside the mod and refreshes the
   counts.
+- The mise source runs `mise -C "$HOME" outdated`, so it counts the **global** config
+  (`~/.config/mise/config.toml`) only: `mise outdated` also reads local `mise.toml` files
+  from the cwd upward, and the shell's cwd is not the mod's to choose. It reports what
+  your config asks for — an exact pin (`node = "26.7.0"`) is never flagged; that needs
+  `mise outdated --bump`, which is a different question. All mise log output goes to
+  stderr, so stdout is exactly one line per outdated tool.
 
 ### Requirements
 
 `pacman` and `checkupdates` (pacman-contrib). The AUR row needs `paru` (preferred) or
-`yay`; the flatpak row appears only when flatpak is installed. Sources you do not use can
-be switched off in the card.
+`yay`; the flatpak and mise rows appear only when those tools are installed. Sources you
+do not use can be switched off in the card (each has its own `scan*` toggle in
+**Ambxst Settings → Mods → System updates**).
 
 ### Verification
 
 `tests/run.sh` runs a behavioral test of the service against the real source under
-Quickshell, covering the per-source state machine and the update guard. It is
-falsifiable: breaking `sourceState()` fails the run. The mod was also loaded from a
+Quickshell, covering the per-source state machine (mise included) and the update guard.
+It is falsifiable: breaking `sourceState()` fails the run, and forcing the mise branch to
+return `up` fails 2 checks. The mod was also loaded from a
 built generation on Ambxst 1.3.3 (`af9f8ad4`) with no QML errors or warnings.
 
 ### Notes

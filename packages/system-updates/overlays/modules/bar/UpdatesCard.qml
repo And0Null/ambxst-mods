@@ -97,7 +97,8 @@ BarPopup {
                 model: [
                     { key: "pacman", label: "pacman", state: SystemUpdatesService.sourceState("pacman"), count: SystemUpdatesService.sourceCount("pacman"), enabled: SystemUpdatesService.scanPacman },
                     { key: "aur", label: "AUR", state: SystemUpdatesService.sourceState("aur"), count: SystemUpdatesService.sourceCount("aur"), enabled: SystemUpdatesService.scanAur },
-                    { key: "flatpak", label: "flatpak", state: SystemUpdatesService.sourceState("flatpak"), count: SystemUpdatesService.sourceCount("flatpak"), enabled: SystemUpdatesService.scanFlatpak }
+                    { key: "flatpak", label: "flatpak", state: SystemUpdatesService.sourceState("flatpak"), count: SystemUpdatesService.sourceCount("flatpak"), enabled: SystemUpdatesService.scanFlatpak },
+                    { key: "mise", label: "mise", state: SystemUpdatesService.sourceState("mise"), count: SystemUpdatesService.sourceCount("mise"), enabled: SystemUpdatesService.scanMise }
                 ]
 
                 delegate: RowLayout {
@@ -113,6 +114,8 @@ BarPopup {
                             return "scanPacman";
                         if (modelData.key === "aur")
                             return "scanAur";
+                        if (modelData.key === "mise")
+                            return "scanMise";
                         return "scanFlatpak";
                     }
                     readonly property string command: {
@@ -120,6 +123,8 @@ BarPopup {
                             return root.pacmanCommand;
                         if (modelData.key === "aur")
                             return root.aurCommand;
+                        if (modelData.key === "mise")
+                            return root.miseCommand;
                         return root.flatpakCommand;
                     }
 
@@ -259,4 +264,7 @@ BarPopup {
     readonly property string pacmanCommand: "sudo pacman -Syu"
     readonly property string aurCommand: SystemUpdatesService.aurHelper === "yay" ? "yay -Sua" : "paru -Sua"
     readonly property string flatpakCommand: "flatpak update"
+    // Same -C $HOME scope as the check: global config only, whatever the
+    // terminal's cwd happens to be.
+    readonly property string miseCommand: "mise -C \"$HOME\" upgrade"
 }
