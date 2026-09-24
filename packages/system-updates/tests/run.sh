@@ -17,7 +17,7 @@ mod="$(cd "$here/.." && pwd)"
 
 # Static guard first: cheap, and it catches assignments to undeclared
 # properties in code paths the runtime test never exercises.
-python3 "$here/check-root-refs.py" \
+python3 "$here/check-static.py" \
     "$mod/overlays/modules/services/SystemUpdatesService.qml" \
     "$mod/overlays/modules/bar/UpdatesCard.qml" \
     "$mod/overlays/modules/bar/UpdatesButton.qml"
