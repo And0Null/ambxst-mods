@@ -14,7 +14,9 @@ import qs.modules.services
 // notification TerminalService can't provide.
 // Every command runs through `sh -c exec ...` so a missing binary still
 // reaches onExited with a nonzero code instead of a silent launch
-// failure; shell stays alive no matter what.
+// failure; shell stays alive no matter what. `command -v` is the exception:
+// it is a shell builtin, and `exec` cannot run one (`exec: command: not
+// found`, exit 127) -- which would read as "not installed" forever.
 Singleton {
     id: root
 
@@ -197,7 +199,7 @@ Singleton {
                     root.miseKnown = true;
                 }
             } else {
-                miseProbe.command = ["sh", "-c", "exec command -v mise"];
+                miseProbe.command = ["sh", "-c", "command -v mise"];
                 root._start(miseProbe);
             }
         } else {
@@ -270,7 +272,7 @@ Singleton {
                 root.miseKnown = true;
             }
         } else {
-            miseProbe.command = ["sh", "-c", "exec command -v mise"];
+            miseProbe.command = ["sh", "-c", "command -v mise"];
             root._start(miseProbe);
         }
         // mise absent: nothing started, don't leave loading stuck.

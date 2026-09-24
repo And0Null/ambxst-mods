@@ -9,23 +9,31 @@ packages/system-updates/tests/run.sh
 # -> system-updates logic test: PASS
 ```
 
-## `check-root-refs.py` — static guard
+## `check-static.py` — static guards
 
-Fails when a file ASSIGNS a `root.<name>` it never declares. QML only reports
-that as `Cannot assign to non-existent property "<name>"` at runtime, and only
-when the assigning code path runs — so a callback the behavioral test never
-exercises (a `Process`'s `onExited`, for instance) hides it completely. This
-guard is what caught the missing `miseProbed`/`miseAvailable` pair that the
-behavioral test passed straight through.
+No runtime, no environment. Two bug classes the behavioral test cannot see, both
+found the hard way on the mise source:
 
-Assignment-only on purpose: reads of inherited members (the card's
-`root.open()`/`root.close()` from `BarPopup`) are legal.
+- **Assignment to an undeclared `root.<name>`.** QML only reports it as
+  `Cannot assign to non-existent property "<name>"` at runtime, and only when the
+  assigning code path runs — so a callback the test never exercises (a
+  `Process`'s `onExited`) hides it completely. This caught the missing
+  `miseProbed`/`miseAvailable` pair that the behavioral test passed straight
+  through. Assignment-only on purpose: reads of inherited members (the card's
+  `root.open()`/`root.close()` from `BarPopup`) are legal.
+- **`sh -c "exec <shell builtin> ..."`.** `exec` replaces the process image, so
+  it can only run an external file: `exec command -v mise` dies with
+  `exec: command: not found` (exit 127). A probe built that way never succeeds,
+  so the source reads as "not installed" and the card shows a false green check.
 
 ```bash
-tests/check-root-refs.py overlays/modules/services/SystemUpdatesService.qml
+tests/check-static.py overlays/modules/services/SystemUpdatesService.qml \
+                      overlays/modules/bar/UpdatesCard.qml \
+                      overlays/modules/bar/UpdatesButton.qml
 ```
 
-Falsifiable: deleting a property declaration the file assigns to fails the run.
+Falsifiable: deleting a property declaration the file assigns to, or putting a
+builtin behind `exec`, fails the run.
 
 ## `run.sh` — service logic test
 

@@ -527,7 +527,10 @@ do not use can be switched off in the card (each has its own `scan*` toggle in
 `tests/run.sh` runs a behavioral test of the service against the real source under
 Quickshell, covering the per-source state machine (mise included) and the update guard.
 It is falsifiable: breaking `sourceState()` fails the run, and forcing the mise branch to
-return `up` fails 2 checks. The mod was also loaded from a
+return `up` fails 2 checks. `tests/check-static.py` adds two guards the runtime test cannot
+see — an assignment to an undeclared `root.<name>` (a runtime-only QML warning, invisible
+in a callback the test never runs) and `sh -c "exec <shell builtin>"` (which dies with
+exit 127, so a probe built that way reads as "not installed" forever). The mod was also loaded from a
 built generation on Ambxst 1.3.3 (`af9f8ad4`) with no QML errors or warnings.
 
 ### Notes
