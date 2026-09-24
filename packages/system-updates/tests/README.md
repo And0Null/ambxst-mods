@@ -1,5 +1,32 @@
 # system-updates tests
 
+`run.sh` is the entry point: it runs the static guard first and then the
+behavioral test, so one command covers both.
+
+```bash
+packages/system-updates/tests/run.sh
+# -> PASS SystemUpdatesService.qml: ... every root.<name> assignment resolves
+# -> system-updates logic test: PASS
+```
+
+## `check-root-refs.py` — static guard
+
+Fails when a file ASSIGNS a `root.<name>` it never declares. QML only reports
+that as `Cannot assign to non-existent property "<name>"` at runtime, and only
+when the assigning code path runs — so a callback the behavioral test never
+exercises (a `Process`'s `onExited`, for instance) hides it completely. This
+guard is what caught the missing `miseProbed`/`miseAvailable` pair that the
+behavioral test passed straight through.
+
+Assignment-only on purpose: reads of inherited members (the card's
+`root.open()`/`root.close()` from `BarPopup`) are legal.
+
+```bash
+tests/check-root-refs.py overlays/modules/services/SystemUpdatesService.qml
+```
+
+Falsifiable: deleting a property declaration the file assigns to fails the run.
+
 ## `run.sh` — service logic test
 
 Runs the **real** `overlays/modules/services/SystemUpdatesService.qml` under

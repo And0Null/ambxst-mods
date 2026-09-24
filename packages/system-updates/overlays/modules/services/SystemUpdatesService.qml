@@ -116,6 +116,8 @@ Singleton {
     }
     property bool flatpakProbed: false
     property bool flatpakAvailable: false
+    property bool miseProbed: false
+    property bool miseAvailable: false
 
     // In-flight check counter; loading clears when the last one exits.
     property int _pending: 0

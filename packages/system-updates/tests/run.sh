@@ -14,6 +14,13 @@ set -euo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 mod="$(cd "$here/.." && pwd)"
+
+# Static guard first: cheap, and it catches assignments to undeclared
+# properties in code paths the runtime test never exercises.
+python3 "$here/check-root-refs.py" \
+    "$mod/overlays/modules/services/SystemUpdatesService.qml" \
+    "$mod/overlays/modules/bar/UpdatesCard.qml" \
+    "$mod/overlays/modules/bar/UpdatesButton.qml"
 qs_bin="${QS_BIN:-qs}"
 timeout_s="${TEST_TIMEOUT:-30}"
 log="$(mktemp)"
