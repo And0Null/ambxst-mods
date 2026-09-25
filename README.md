@@ -628,7 +628,7 @@ ships (`wl-paste`/`wl-copy`) and `notify-send`. Declared in the manifest's
   and vertical bar). The card reuses Ambxst's own `BarPopup`.
 - The helper binary is vendored in the package (`payload/bin/lan-share-helper`
   — pinned x86_64). It patches its own runtime state directory name
-  (`$XDG_STATE_HOME/lan-share-dir/` (default `$HOME/.local/state/lan-share-dir/`)); the first run generates a fresh TLS identity
+  (at `$XDG_STATE_HOME/lanshare-state/`, default `~/.local/state/lanshare-state/`); the first run generates a fresh TLS identity
   (whose fingerprint differs from any prior oma.nearby identity), so peers see a new
   device once.
 - This mod is an independent integration with the LocalSend protocol; it is not
