@@ -542,6 +542,79 @@ built generation on Ambxst 1.3.3 (`af9f8ad4`) with no QML errors or warnings.
   `BarContent.qml` (e.g. desktop-widgets at `@@ -1016`) compose cleanly. Two hunks
   sharing context lines would not.
 
+---
+
+## lan-share — `and0null.lan-share` (v1.2.0)
+
+LAN peer presence and transfer for the LocalSend protocol, driven by a vendored helper
+binary (a pinned build of [oma.nearby](https://github.com/jfg96/oma.nearby)'s helper,
+MIT, attribution in the package's `NOTICES.txt`). A bar button opens a card with the
+peers found on your LAN; you can send clipboard text or picked files to a peer and
+accept or decline incoming transfers. **The receiver starts OFF** — zero LAN traffic
+until you turn it on (right-click the bar button).
+
+```bash
+ambxst mods install https://github.com/And0Null/ambxst-mods/tree/main/packages/lan-share
+ambxst mods enable and0null.lan-share
+```
+
+### What it does
+
+- **Discovery**: peers advertising on the LAN appear in the card with their device
+  name, model and type; a peer that stops re-announcing for 90 s is pruned.
+- **Text send**: sends your clipboard to a selected peer (reads it with `wl-paste`,
+  so copy what you want to send first).
+- **Files send** (PC → peer): picks files with `zenity --file-selection --multiple`
+  and sends them; the picker re-opens in the last used directory.
+- **Incoming**: an incoming request shows in the card; accept saves the files to
+  `~/Downloads` (unique suffix on name collision) and notifies via `notify-send`;
+  decline drops it. Incoming text arrives into your clipboard (`wl-copy`).
+- Transfers show progress and a cancel button, reporting per LocalSend.
+
+### Behavior
+
+- The helper binds TCP/UDP **53317** (the LocalSend port) and is a single instance per
+  session — the service owns exactly one engine, not one per monitor.
+- Device name announced to peers: set **Device name** in
+  **Ambxst Settings → Mods → LAN Share** (applies on the next receiver start, so
+  restart the shell after changing it). Empty (default) announces the system hostname
+  (then the login user) — never a built-in default.
+- The announced name is passed through the `HOSTNAME` environment variable on every
+  helper start, so the helper's compiled-in fallback never runs.
+- Receiver state is persisted (`nearby.receiverEnabled`, default OFF), so it comes
+  back as you left it after a shell restart.
+- Version gate: the service refuses (visible error) a helper older than
+  `1.1.2` — the oldest protocol it drives.
+
+### Requirements
+
+`zenity` (files send picker) + the standard Wayland clipboard tools the shell already
+ships (`wl-paste`/`wl-copy`) and `notify-send`. Declared in the manifest's
+`commands`, so the installer warns if `zenity` is missing.
+
+### Verification
+
+- Helper smoke-tested isolated (netns + dummy link): correct `ready` event with the
+  configured alias and `helperVersion: 1.1.2`.
+- Model helpers (`NearbyModel.js`) are Node-testable by design: discovery shaping,
+  transfer queues, version gating (SemVer with prerelease) are pure functions.
+- The live helper's announce was verified against `curl
+  https://127.0.0.1:53317/api/localsend/v2/info` (alias = the configured name).
+- `testedBaseCommits` in the manifest: `af9f8ad4…` and `2a704c43…` (Ambxst 1.3.x).
+
+### Notes
+
+- Patch surface: **`modules/bar/BarContent.qml` only** (two insertions, horizontal
+  and vertical bar). The card reuses Ambxst's own `BarPopup`.
+- The helper binary is vendored in the package (`payload/bin/narciss-lan-share-helper`
+  — pinned x86_64). It patches its own runtime state directory name
+  (`~/.local/state/narciss-nearby/`); the first run generates a fresh TLS identity
+  (whose fingerprint differs from any prior oma.nearby identity), so peers see a new
+  device once.
+- This mod is an independent integration with the LocalSend protocol; it is not
+  affiliated with or endorsed by LocalSend. Upstream licences are kept verbatim in
+  `NOTICES.txt`.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
