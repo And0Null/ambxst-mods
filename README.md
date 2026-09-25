@@ -136,7 +136,7 @@ clear message until you install it.
 
 ---
 
-## desktop-widgets — `and0null.desktop-widgets` (v1.14.0, staging)
+## desktop-widgets — `and0null.desktop-widgets` (v1.15.0, staging)
 
 > **Not published yet.** This mod is still in `staging/` (gitignored), so the install
 > command below does not resolve until it moves to `packages/`.
@@ -284,6 +284,29 @@ destroys data.
   `INTERVAL`, `COUNT`, `UNTIL`, weekly `BYDAY`, monthly `BYMONTHDAY` (negative included),
   `EXDATE` and `RDATE`, and the expansion is capped so a hostile rule cannot stall the UI
   thread.
+
+### A day's detail, on a tap
+
+A tap on any day of a desktop calendar card opens **that day**: a small panel with the date
+(`Today`, `Tomorrow`, or the day itself) and one row per event — the time it runs, its title,
+where it is, and the color and name of the calendar it came from. A day with nothing on it
+**says so** instead of showing an empty box, and a day holding events from several calendars
+lists every one of them, each keeping its own color; two events at the same hour are two
+rows, not one.
+
+It is a **surface of its own** (`DayDetail.qml`, the shell's Top layer, one per screen,
+registered in `shell.qml` by `patches/shell.patch`), not a bigger card. A day's worth of
+events does not fit in a 280x112 week strip, and growing the cards until they hold one would
+undo the sizes the families declare — as its own surface it is the SAME thing in all three
+tiers. It rides the Top layer because the cards live on the Bottom one, *under every window*,
+so a panel drawn below them would be invisible half the time. **Esc** closes it, as does a
+second tap on the same day: the day is a toggle, so there is no state you cannot get out of.
+
+The card and the surface cannot disagree about which day is open. The tap writes the day into
+the service (`detailDayKey`), the surface reads it, Esc clears it, and the **ring** on the
+cell follows that same value — the outline around the day is the state, not a second copy of
+it. While **edit mode** is on a press on a card is a drag, so the cells stop taking taps and
+that press moves the card instead.
 
 ### Layout file
 
@@ -440,6 +463,8 @@ itself proves nothing:
 | the sources file through the menu: opening the menu must write nothing, a real edit must write, a duplicate must be refused, and an **unparseable file must never be overwritten** | `python3 tests/calendar-menu-writes.py` |
 | the menu's shape per screen: the columns it picks, the width that implies, the height it is allowed and the live panel Hyprland reports — with the constants **read out of the shipped QML** | `python3 tests/desktop-widgets-menu-geometry.py` |
 | the content-family selector: the tiers the menu offers are the ones the widget QMLs draw, the switches sit on the file's families (group children included, unknown families offered nothing), a pick on an option writes through the control's own signal, an out-of-range index writes nothing, the size each family is applied at is the one the widget's header declares (both tables read back out of the sources) and clears the widget's own gate, a pick **shrinks** as well as grows and doing it twice does not move the card twice, and the calendar's minimal tier is a week: the panel, asked at that card's inner size, draws **one** row of days that starts on a Monday and holds today, with its letters and without the title | `python3 tests/widget-family-menu.py` |
+| a day on a tap: three fixtures through the same panel and the same surface the shell ships — a day holding five events from three calendars (two of them overlapping, one duplicate merged out by UID), a day with nothing that says so — the ring following the service's day in the **month grid and in the week strip**, the tap's state machine (a second tap closes, and clearing empties it), and the day's label and times read as text; the cell→date formula is asked of the shipped panel and compared with the real date, and a copy of the panel with the cells off by one day plus a service with the toggle removed fails it | `python3 tests/calendar-day-detail.py` |
+| the day detail photographed on a headless output, in its own `XDG_CONFIG_HOME`: a day with five events from three calendars, a day that says it has none, and the ring on a cell that is not today — on the output the probe really drew on, with the surface confirmed in Hyprland's layer list | `python3 tests/day-detail-preview.py` |
 
 `calendar-menu-writes.py` runs each scenario against a throwaway `XDG_CONFIG_HOME`, so it
 cannot touch the real `~/.config/ambxst`, and it starts a probe that instantiates the
