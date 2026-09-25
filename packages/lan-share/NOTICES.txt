@@ -1,8 +1,8 @@
 LAN Share notices for and0null.lan-share 1.2.0.
 
 This package vendors the oma.nearby 1.1.2 helper binary
-(payload/bin/narciss-lan-share-helper, pinned x86_64 build) and ports its
-Model.js shaping helpers into overlays/modules/widgets/nearby/NearbyModel.js.
+(payload/bin/lan-share-helper, pinned x86_64 build) and ports its
+Model.js shaping helpers into overlays/modules/widgets/lanshare/LanShareModel.js.
 The helper speaks the LocalSend protocol on port 53317. This mod is an
 independent integration; it is not affiliated with or endorsed by LocalSend.
 
@@ -62,7 +62,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 The vendored crate's own THIRD_PARTY_NOTICES.md is retained upstream. The copy
-contains local changes used by Nearby and must not be assumed identical to an
+contains local changes used by LANShare and must not be assumed identical to an
 upstream release. See oma.nearby VENDORED_LOCALSEND_RS.md for the maintenance
 record.
 

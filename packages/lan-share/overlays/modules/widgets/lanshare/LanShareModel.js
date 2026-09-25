@@ -1,4 +1,4 @@
-// NearbyModel.js — pure helpers for and0null.nearby.
+// LanShareModel.js — pure helpers for and0null.lan-share.
 //
 // Subset port of oma.nearby 1.1.2 Model.js: discovery peer shaping,
 // incoming-transfer queue shaping, text-send command shaping, Downloads
@@ -6,12 +6,12 @@
 //
 // Deliberately excluded from the port (v1.0 scope):
 // - shell.json bar-entry helpers (barEntry, promotion, receiverEnabledIn):
-//   persistence lives in StateService key `nearby.receiverEnabled` with
-//   default OFF, enforced by NearbyService (PR2), never by this module.
+//   persistence lives in StateService key `lanshare.receiverEnabled` with
+//   default OFF, enforced by LanShareService (PR2), never by this module.
 // - PIN flows, updater helpers (helperUpdateAvailable,
 //   helperVersionMatches exact-match, manifest readers): no PIN, no
 //   updater UI in v1.0/v1.1. `minHelperVersion` is a QML const in
-//   NearbyService and is checked here only via `helperSatisfies`.
+//   LanShareService and is checked here only via `helperSatisfies`.
 // - UI cosmetics (iconFor, formatBytes): the card owns its presentation.
 //   (v1.1 adds file-send shaping below; shell.json bar-entry helpers stay
 //   excluded for the same reason as above.)
@@ -131,7 +131,7 @@ function dirOf(path) {
   return raw.slice(0, slash)
 }
 
-// Nearby's release process only ever produces MAJOR.MINOR.PATCH with an
+// LANShare's release process only ever produces MAJOR.MINOR.PATCH with an
 // optional prerelease suffix, so that is all this reads. Anything else is
 // null, which callers treat as unknown rather than as equal: a version that
 // cannot be read is not one the service can vouch for.

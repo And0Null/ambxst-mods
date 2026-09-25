@@ -4,8 +4,8 @@ diff --git c/modules/bar/BarContent.qml w/modules/bar/BarContent.qml
 @@ -521,5 +521,13 @@ Item {
                          }
 
-+                        NearbyButton {
-+                            id: nearbyButton
++                        LanShareButton {
++                            id: lanShareButton
 +                            bar: root
 +                            startRadius: root.innerRadius
 +                            endRadius: root.innerRadius
@@ -19,8 +19,8 @@ diff --git c/modules/bar/BarContent.qml w/modules/bar/BarContent.qml
                              }
                          }
 
-+                        NearbyButton {
-+                            id: nearbyButtonVert
++                        LanShareButton {
++                            id: lanShareButtonVert
 +                            bar: root
 +                            startRadius: root.innerRadius
 +                            endRadius: root.innerRadius

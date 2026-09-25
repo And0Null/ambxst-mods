@@ -5,7 +5,7 @@ import Quickshell
 import qs.modules.services
 import qs.modules.components
 import qs.modules.theme
-import qs.modules.widgets.nearby
+import qs.modules.widgets.lanshare
 
 // Bar button for LAN Share (ControlsButton pattern).
 // Left-click: card · right-click: receiver on/off.
@@ -24,7 +24,7 @@ Item {
     property real endRadius: radius
 
     // Popup visibility state (tracks intent, not animation)
-    property bool popupOpen: nearbyPopup.isOpen
+    property bool popupOpen: lanSharePopup.isOpen
 
     Layout.preferredWidth: 36
     Layout.preferredHeight: 36
@@ -33,7 +33,7 @@ Item {
 
     StyledToolTip {
         show: root.isHovered && !root.popupOpen
-        tooltipText: "LAN Share · " + NearbyService.statusMeta
+        tooltipText: "LAN Share · " + LanShareService.statusMeta
     }
 
     HoverHandler {
@@ -64,7 +64,7 @@ Item {
             text: Icons.globe
             font.family: Icons.font
             font.pixelSize: 18
-            color: root.popupOpen ? buttonBg.item : ((NearbyService.receiverEnabled && NearbyService.backendReady) ? Styling.srItem("overprimary") : Colors.outline)
+            color: root.popupOpen ? buttonBg.item : ((LanShareService.receiverEnabled && LanShareService.backendReady) ? Styling.srItem("overprimary") : Colors.outline)
         }
 
         MouseArea {
@@ -74,20 +74,20 @@ Item {
             acceptedButtons: Qt.LeftButton | Qt.RightButton
             onClicked: mouse => {
                 if (mouse.button === Qt.RightButton) {
-                    NearbyService.toggleReceiver();
+                    LanShareService.toggleReceiver();
                     return;
                 } else if (mouse.button === Qt.LeftButton) {
-                    nearbyPopup.toggle();
+                    lanSharePopup.toggle();
                 }
             }
         }
     }
 
-    // Nearby card popup (anchored to the button, like Govee).
+    // LANShare card popup (anchored to the button, like Govee).
     // Discovery follows the popup: opening any card starts it, closing the
     // last one stops it.
     BarPopup {
-        id: nearbyPopup
+        id: lanSharePopup
         anchorItem: buttonBg
         bar: root.bar
         popupPadding: 12
@@ -95,18 +95,18 @@ Item {
         contentWidth: 360
         contentHeight: 480
 
-        NearbyCard {}
+        LanShareCard {}
 
         onIsOpenChanged: {
             if (isOpen)
-                NearbyService.viewOpened();
+                LanShareService.viewOpened();
             else
-                NearbyService.viewClosed();
+                LanShareService.viewClosed();
         }
 
         Component.onDestruction: {
             if (isOpen)
-                NearbyService.viewClosed();
+                LanShareService.viewClosed();
         }
     }
 }
