@@ -128,7 +128,7 @@ clear message until you install it.
   ```toml
   [templates.pkg-icon]
   input_path = "~/.cache/ambxst/colors.json"
-  output_path = "~/.cache/narciss/pkg-icon-stamp"
+  output_path = "~/.cache/pkg-icon-stamp"
   post_hook = "sleep 2; $HOME/.local/bin/pkg-icon-sync >/dev/null 2>&1"
   ```
 
@@ -136,7 +136,7 @@ clear message until you install it.
 
 ---
 
-## desktop-widgets — `and0null.desktop-widgets` (v1.11.0, staging)
+## desktop-widgets — `and0null.desktop-widgets` (v1.14.0, staging)
 
 > **Not published yet.** This mod is still in `staging/` (gitignored), so the install
 > command below does not resolve until it moves to `packages/`.
@@ -186,6 +186,15 @@ two optional properties to that panel and to its day cell:
   card that already looked right keeps rendering the base sizes, and only a bigger one grows
   the grid — a 540x540 card multiplies the cells and their digits by 1.5 (28px cells become
   42px) instead of adding another band of empty glass.
+- **`weekOnly`** on the panel, off by default: the grid draws ONE row instead of six — the
+  week that holds today, or the month's first week when the panel shows a month without
+  today in it — with the same cells, the same today pill and the same highlighted row. It is
+  a MODE on the same grid, never a second one, and how much of the week arrives is a fits
+  gate on the panel's own height: the day row always, the weekday letters above it when
+  there is room (66px of content, so a card of 98 or more), the week's own dates in the
+  title row above that. The month arrows are hidden in this mode. This is what the desktop
+  calendar's **minimal** tier renders, and the dashboard leaves it off, so its own calendar
+  still draws its six rows.
 - **`showEventDots`** on the panel and **`eventDots`** on the cell, off and empty by default,
   so the dashboard's own calendar draws nothing new. The desktop calendar turns it on and
   hands each cell the colors of the calendars with something that day.
@@ -203,14 +212,21 @@ of that fits:
 
 | family | card | what it draws |
 |---|---|---|
+| `compact` | 280x112 | the **week**: the seven days of the current week in one row, today highlighted, with the weekday letters above them |
 | `full` | 360x360 | the month grid, exactly as it has always rendered |
-| `detailed` | 720x400 | the month grid plus the **agenda**: the next events from today, one row each, with the color of the calendar they come from |
+| `detailed` | 552x332 | the month grid plus the **agenda**: the next events from today, one row each, with the color of the calendar they come from |
+
+The small tier is a **week and not a squeezed month**: the month needs ~250px of height at
+the base metrics, so a month in a small card would be tiny digits in tiny cells — the look
+this mod exists to avoid. A week is less TIME instead of the same month made smaller, which
+is also how the other three widgets' `compact` tiers work (one line instead of a block).
 
 A `detailed` card falls back to the plain grid when its **widget** is under 520x300 — the
 widget sees the card minus the frame's 16px per side, so that is a card of **552x332**. The
 agenda needs a square-ish grid (~220px at scale 1) plus a list column to be worth reading,
-and a row that does not fit is not drawn at all. Picking `detailed` for a smaller calendar
-grows it to exactly that (see *Managing widgets*).
+and a row that does not fit is not drawn at all. The week strip's own gates are inside the
+panel: a card under ~98px tall draws the day row without the weekday letters. Picking a
+family sets the card to that family's size (see *Managing widgets*).
 
 The events come from **your own calendars, in one file**.
 `~/.config/ambxst/desktop-widgets-calendars.json` (mode **600** — a feed URL is a
@@ -295,10 +311,10 @@ widget (with its position) hidden instead of deleted:
 pixels from those edges; `center` ignores the offset and pins the card to the middle of
 the output, which is what keeps it centred at any resolution. A `group` entry lays its
 `children` out as a `column` (default) or a `row`. `family` — per entry and per group
-child — selects how much information a widget shows
-(`compact`, `full`, `detailed`): the clock, the weather card and the system card have
-three tiers each, while the calendar takes one and ignores it — its month grid has no
-honest smaller form. Saving a layout never drops it. The top-level `design` field records which design the
+`child` — selects how much information a widget shows
+(`compact`, `full`, `detailed`): all four widgets have three tiers each, and the calendar's
+`compact` is the week row while its `full` is the month grid. Each tier has the card size it
+needs, and picking one applies it (see *Managing widgets*). Saving a layout never drops it. The top-level `design` field records which design the
 layout came from, or `custom` once it has been edited by hand. A file that still stores
 screen *fractions* (`x`/`y`) is converted once, using the biggest connected output as the
 reference, so the placement you already had is preserved; the first change you make
@@ -333,7 +349,7 @@ edit your calendars (see *Calendar events*), set the card opacity with a slider,
 the default layout or hit **Done**. `Esc` closes the menu.
 
 The family switch offers exactly the tiers each widget draws: three for the clock, the
-weather and the system cards, two for the calendar (it has no honest `compact` form), and
+weather, the system and the calendar cards (the calendar's smallest is the week row), and
 none of its own for a group card, which draws its children instead — a group gives each
 child its own row and its own switch. A family this version does not know (a hand edit, or
 a design from a newer one) keeps its row with **no switch at all**: nothing is offered for
@@ -342,16 +358,20 @@ shell's stock `SegmentedSwitch`: that one measures its highlight from the select
 before the buttons exist, so it starts as a blob at the left edge and only lands right after
 the first click. It follows the pattern the shell's own settings panel uses instead (each
 selected label reports its own geometry), so the highlight is on the right label from the
-first frame and is exactly as wide as that label. Choosing a family **grows** a card that is under what that family
-needs, one dimension at a time and never shrinking one (with no free resize in the menu,
-there would be no way to undo an automatic shrink): the calendar's agenda needs a widget of
-520x300, so a smaller calendar card grows to 552x332, and the weather's six-day strip needs
-190px of height, so a shorter one grows to 222. Those are the only two gates the widgets
-declare — the clock draws its whole family at any size, and the system card drops rows as the
-height runs out on purpose — so nothing is forced for them, and a card that is already big
-enough keeps its size. Growth leaves the anchor alone, so a right-anchored card grows
-leftwards and keeps its distance from the edge. Re-applying a design resets families, the same
-deal visibility already has.
+first frame and is exactly as wide as that label. Choosing a family **sets the card to that family's size**, in either direction: the
+minimal tier shrinks it — a calendar's 360x360 square becomes a 280x112 week strip — the
+detailed tier grows it, and picking the tier that is already on just puts the size back, so
+the control is also the repair for a card whose size drifted. Each size is the one the
+widget's own header declares for that family (280x80 compact, 280x190 full, 280x240
+detailed; the calendar 280x112 / 360x360 / 552x332), and every one of them is checked to
+clear the gate the widget draws that family behind — the calendar's agenda needs a widget of
+520x300 (a card of 552x332) and the weather's six-day strip needs 190px of height (a card of
+222, which its 240-tall detailed card pays for). The two gates are still the only ones the
+widgets declare: the clock draws its whole family at any size, and the system card drops rows
+as the height runs out on purpose. Only the card is touched — the **anchor is untouched**, so
+a right-anchored card shrinks and grows to the left and keeps its distance from the edge — and
+a group child has no card of its own: what it draws changes inside its parent's card, which
+owns the size. Re-applying a design resets families, the same deal visibility already has.
 
 The menu has **two shapes** and picks by screen: one column of 380px on a tall output, and
 two columns side by side — the widgets on the left, the calendars on the right, the footer
@@ -419,7 +439,7 @@ itself proves nothing:
 | the cell -> date mapping behind the dots: 96 months, 3 timezones, the formula **extracted from the shipped patch**, checked against the `layout.js` of the deployed generation | `node tests/calendar-cells.js` |
 | the sources file through the menu: opening the menu must write nothing, a real edit must write, a duplicate must be refused, and an **unparseable file must never be overwritten** | `python3 tests/calendar-menu-writes.py` |
 | the menu's shape per screen: the columns it picks, the width that implies, the height it is allowed and the live panel Hyprland reports — with the constants **read out of the shipped QML** | `python3 tests/desktop-widgets-menu-geometry.py` |
-| the content-family selector: the tiers the menu offers are the ones the widget QMLs draw, the switches sit on the file's families (group children included, unknown families offered nothing), a pick on an option writes through the control's own signal, an out-of-range index writes nothing, and the growth targets are the widgets' own gates plus the frame — read out of `WidgetFrame.qml` and out of each widget — with the calendar **asked** at the resulting size and answering `showAgenda=true` | `python3 tests/widget-family-menu.py` |
+| the content-family selector: the tiers the menu offers are the ones the widget QMLs draw, the switches sit on the file's families (group children included, unknown families offered nothing), a pick on an option writes through the control's own signal, an out-of-range index writes nothing, the size each family is applied at is the one the widget's header declares (both tables read back out of the sources) and clears the widget's own gate, a pick **shrinks** as well as grows and doing it twice does not move the card twice, and the calendar's minimal tier is a week: the panel, asked at that card's inner size, draws **one** row of days that starts on a Monday and holds today, with its letters and without the title | `python3 tests/widget-family-menu.py` |
 
 `calendar-menu-writes.py` runs each scenario against a throwaway `XDG_CONFIG_HOME`, so it
 cannot touch the real `~/.config/ambxst`, and it starts a probe that instantiates the
@@ -606,9 +626,9 @@ ships (`wl-paste`/`wl-copy`) and `notify-send`. Declared in the manifest's
 
 - Patch surface: **`modules/bar/BarContent.qml` only** (two insertions, horizontal
   and vertical bar). The card reuses Ambxst's own `BarPopup`.
-- The helper binary is vendored in the package (`payload/bin/narciss-lan-share-helper`
+- The helper binary is vendored in the package (`payload/bin/lan-share-helper`
   — pinned x86_64). It patches its own runtime state directory name
-  (`~/.local/state/narciss-nearby/`); the first run generates a fresh TLS identity
+  (`$XDG_STATE_HOME/lan-share-dir/` (default `$HOME/.local/state/lan-share-dir/`)); the first run generates a fresh TLS identity
   (whose fingerprint differs from any prior oma.nearby identity), so peers see a new
   device once.
 - This mod is an independent integration with the LocalSend protocol; it is not
