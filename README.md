@@ -589,7 +589,7 @@ built generation on Ambxst 1.3.3 (`af9f8ad4`) with no QML errors or warnings.
 
 ---
 
-## lan-share — `and0null.lan-share` (v1.3.0)
+## lan-share — `and0null.lan-share` (v1.3.1)
 
 LAN peer presence and transfer for the LocalSend protocol, driven by a vendored helper
 binary (a pinned build of [oma.nearby](https://github.com/jfg96/oma.nearby)'s helper,
@@ -641,10 +641,18 @@ ships (`wl-paste`/`wl-copy`) and `notify-send`. Declared in the manifest's
 
 - Helper smoke-tested isolated (netns + dummy link): correct `ready` event with the
   configured alias and `helperVersion: 1.1.2`.
-- Model helpers (`NearbyModel.js`) are Node-testable by design: discovery shaping,
+- Model helpers (`LanShareModel.js`) are Node-testable by design: discovery shaping,
   transfer queues, version gating (SemVer with prerelease) are pure functions.
 - The live helper's announce was verified against `curl
   https://127.0.0.1:53317/api/localsend/v2/info` (alias = the configured name).
+- Patch composition, both load orders (v1.3.1): the bar insertion shares its anchor
+  with `and0null.system-updates` (both sit immediately before `ControlsButton`, in the
+  horizontal and the vertical group), so whichever mod loads second can only apply
+  through `git apply --3way` + the manager's `resolveAddedBlocks`. The patch carries
+  its blob pre-image (`index` line) for that: the 3-way then leaves empty-base diff3
+  conflicts and both buttons survive. Replayed against the pristine base in the
+  manager's own sequence — clean apply for 1.3.0 → 1.3.8, and a byte-identical result
+  to the pre-1.3.1 patch in the order that already worked.
 - `testedBaseCommits` in the manifest: `af9f8ad4…` and `2a704c43…` (Ambxst 1.3.x).
 
 ### Notes
@@ -660,6 +668,13 @@ ships (`wl-paste`/`wl-copy`) and `notify-send`. Declared in the manifest's
   affiliated with or endorsed by LocalSend. Upstream licences are kept verbatim in
   `NOTICES.txt` (the vendored helper is [oma.nearby](https://github.com/jfg96/oma.nearby)'s,
   MIT attribution preserved).
+- v1.3.1 fixes how the patch composes: the file was hand-written without the `index`
+  pre-image line, so `git apply --3way` could never run and the manager's same-spot
+  merge fallback was unreachable. Installs where `and0null.system-updates` loaded
+  **before** lan-share therefore failed with `repository lacks the necessary blob to
+  perform 3-way merge` + `patch does not apply` (vertical bar hunk only). The patch is
+  now a real `git diff`; the composed bar is unchanged for anyone it already worked
+  for. Nothing to reconfigure — `ambxst mods update and0null.lan-share`.
 - v1.3.0 renames the internal surfaces from their upstream `nearby` naming to
   `LanShare*` / `widgets/lanshare/`. Receiver state and the remembered picker
   directory migrate once from the old `nearby.*` StateService keys, so an updated
