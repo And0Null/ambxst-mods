@@ -1,0 +1,363 @@
+diff --git i/modules/widgets/dashboard/widgets/calendar/Calendar.qml w/modules/widgets/dashboard/widgets/calendar/Calendar.qml
+index 9b9e47b..450e3fd 100644
+--- i/modules/widgets/dashboard/widgets/calendar/Calendar.qml
++++ w/modules/widgets/dashboard/widgets/calendar/Calendar.qml
+@@ -10,6 +10,105 @@ Item {
+     id: root
+ 
+     property int monthShift: 0
++
++    // Multiplies every fixed metric in this panel: the title row and its two arrows, the
++    // weekday row, the six day rows and the type inside them. The dashboard leaves it at
++    // 1, so its own calendar renders exactly as it always has; the desktop calendar sets
++    // it from the card's size, so the grid grows with the glass instead of leaving it
++    // empty. Everything scales together on purpose — a grid of fixed cells in a bigger
++    // card is the "small numbers in big squares" the type scale exists to avoid.
++    property real metricScale: 1
++
++    // Event dots. The desktop calendar turns this on from its card; the dashboard's own
++    // panel leaves it off, so its grid renders exactly as it always has. With no feed
++    // configured the service is empty and no cell draws anything either.
++    property bool showEventDots: false
++
++    // A WEEK instead of a month: the grid draws ONE row — the week that holds today, or
++    // the month's first week when the panel is showing a month that does not contain it —
++    // so the desktop calendar can be a small strip. It is a MODE on this same grid, never
++    // a second one: the cells, the today pill and the highlighted row are unchanged. The
++    // dashboard leaves it false and draws its six rows exactly as it always has.
++    property bool weekOnly: false
++
++    // One row in the week mode, the month's six otherwise: what the day Repeater draws.
++    readonly property int gridRows: root.weekOnly ? 1 : 6
++
++    // The row this mode draws: the grid's own highlight row when today is in the month
++    // being viewed, that month's first week otherwise.
++    readonly property int weekRow: (root.currentWeekRow >= 0) ? root.currentWeekRow : 0
++
++    // How much of the week the height pays for, in this panel's own space: the day row
++    // always, the weekday letters above it when they fit, then the week's own dates in
++    // the title row. The same fits gate the shell's widgets use — the caller decides the
++    // card, the height decides how much of the week arrives.
++    readonly property real weekRowBlock: 28 * root.metricScale
++    readonly property real weekLettersBlock: 30 * root.metricScale   // letters + separator
++    readonly property real weekChrome: 8 * root.metricScale          // the inner margins
++    readonly property bool showWeekLetters: !root.weekOnly
++        || root.height >= root.weekRowBlock + root.weekLettersBlock + root.weekChrome
++    // The month's title row is always drawn; in the week mode it carries the week's own
++    // dates, and only when the height pays for it. Both the visibility and the height of
++    // that row hang off this, so the month view keeps the title row it always had.
++    readonly property bool showTitleRow: !root.weekOnly
++        || root.height >= root.weekRowBlock + root.weekLettersBlock + root.weekChrome + 32 * root.metricScale
++
++    readonly property var monthNames: [
++        "calendar.month.january", "calendar.month.february", "calendar.month.march",
++        "calendar.month.april", "calendar.month.may", "calendar.month.june",
++        "calendar.month.july", "calendar.month.august", "calendar.month.september",
++        "calendar.month.october", "calendar.month.november", "calendar.month.december"
++    ]
++
++    // "28 Sep - 4 Oct": the week this mode draws, said with the same month names the
++    // title uses, so a strip with no room for a month title still says which week it is.
++    function weekRangeText() {
++        var first = root.cellDate(root.weekRow, 0);
++        var last = new Date(first.getFullYear(), first.getMonth(), first.getDate() + 6);
++        var label = function (d) {
++            return d.getDate() + " " + I18n.t(root.monthNames[d.getMonth()]).substring(0, 3);
++        };
++        return label(first) + " - " + label(last);
++    }
++
++    // The grid always starts on the Monday of the week that holds the 1st, so a cell's
++    // date is an offset from there. Built through the Date constructor so a DST change
++    // cannot shift a cell into the day before.
++    function cellDate(rowIndex, index) {
++        var v = root.viewingDate;
++        var first = new Date(v.getFullYear(), v.getMonth(), 1);
++        return new Date(v.getFullYear(), v.getMonth(), 1 - ((first.getDay() + 6) % 7) + rowIndex * 7 + index);
++    }
++
++    // The day whose detail is open, "" when none. The panel only DRAWS it (the ring on the
++    // cell); who opens a detail is the caller, which listens to dayActivated. Empty and
++    // true by default, so the dashboard's own calendar neither rings nor clicks.
++    property string selectedDayKey: ""
++    property bool dayClicksEnabled: true
++    // A click on a day cell, carrying the service's own day key ("YYYY-MM-DD", local).
++    signal dayActivated(string key)
++
++    // dayKey -> [colour] for the six weeks on screen, looked up once per grid rebuild.
++    property var eventDays: {
++        if (!root.showEventDots)
++            return ({});
++        return CalendarEventsService.daysWithEvents(root.cellDate(0, 0).getTime(), root.cellDate(5, 6).getTime() + 86400000);
++    }
++
++    function dotsFor(rowIndex, index) {
++        return root.eventDays[CalendarEventsService.dayKey(root.cellDate(rowIndex, index).getTime())] || [];
++    }
++
++    // The day a cell stands for: the one value a click reports and a selection is matched
++    // against, in the format the events are bucketed by, so nothing re-formats a date.
++    function keyFor(rowIndex, index) {
++        return CalendarEventsService.dayKey(root.cellDate(rowIndex, index).getTime());
++    }
++
++    function isSelected(rowIndex, index) {
++        return root.selectedDayKey !== "" && root.selectedDayKey === root.keyFor(rowIndex, index);
++    }
++
+     property date currentDate: new Date()
+     property var viewingDate: CalendarLayout.getDateInXMonthsTime(monthShift, currentDate)
+     property var calendarLayoutData: CalendarLayout.getCalendarLayout(viewingDate, monthShift === 0)
+@@ -52,13 +151,14 @@ Item {
+ 
+             ColumnLayout {
+                 anchors.fill: parent
+-                anchors.margins: 4
+-                spacing: 4
++                anchors.margins: root.weekOnly ? 0 : 4 * root.metricScale
++                spacing: 4 * root.metricScale
+ 
+                 RowLayout {
+                     Layout.fillWidth: true
+-                    Layout.maximumHeight: 32
+-                    spacing: 4
++                    visible: root.showTitleRow
++                    Layout.maximumHeight: root.showTitleRow ? 32 * root.metricScale : 0
++                    spacing: 4 * root.metricScale
+ 
+                     StyledRect {
+                         id: titleRect
+@@ -69,19 +169,11 @@ Item {
+ 
+                         Text {
+                             anchors.centerIn: parent
+-                            text: {
+-                                var monthKeys = [
+-                                    "calendar.month.january", "calendar.month.february",
+-                                    "calendar.month.march", "calendar.month.april",
+-                                    "calendar.month.may", "calendar.month.june",
+-                                    "calendar.month.july", "calendar.month.august",
+-                                    "calendar.month.september", "calendar.month.october",
+-                                    "calendar.month.november", "calendar.month.december"
+-                                ];
+-                                return I18n.t(monthKeys[viewingDate.getMonth()]) + " " + viewingDate.getFullYear();
+-                            }
++                            text: root.weekOnly
++                                ? root.weekRangeText()
++                                : (I18n.t(root.monthNames[viewingDate.getMonth()]) + " " + viewingDate.getFullYear())
+                             font.family: Config.defaultFont
+-                            font.pixelSize: Config.theme.fontSize
++                            font.pixelSize: Config.theme.fontSize * root.metricScale
+                             font.weight: Font.Bold
+                             color: titleRect.item
+                             horizontalAlignment: Text.AlignHCenter
+@@ -91,7 +183,8 @@ Item {
+                     StyledRect {
+                         id: leftButton
+                         variant: leftMouseArea.pressed ? "primary" : (leftMouseArea.containsMouse ? "focus" : "internalbg")
+-                        Layout.preferredWidth: 32
++                        visible: !root.weekOnly
++                        Layout.preferredWidth: 32 * root.metricScale
+                         Layout.fillHeight: true
+                         radius: Styling.radius(0)
+ 
+@@ -101,7 +194,7 @@ Item {
+                             anchors.centerIn: parent
+                             text: Icons.caretLeft
+                             font.family: Icons.font
+-                            font.pixelSize: 16
++                            font.pixelSize: 16 * root.metricScale
+                             color: leftButton.buttonItem
+                         }
+ 
+@@ -117,7 +210,8 @@ Item {
+                     StyledRect {
+                         id: rightButton
+                         variant: rightMouseArea.pressed ? "primary" : (rightMouseArea.containsMouse ? "focus" : "internalbg")
+-                        Layout.preferredWidth: 32
++                        visible: !root.weekOnly
++                        Layout.preferredWidth: 32 * root.metricScale
+                         Layout.fillHeight: true
+                         radius: Styling.radius(0)
+ 
+@@ -127,7 +221,7 @@ Item {
+                             anchors.centerIn: parent
+                             text: Icons.caretRight
+                             font.family: Icons.font
+-                            font.pixelSize: 16
++                            font.pixelSize: 16 * root.metricScale
+                             color: rightButton.buttonItem
+                         }
+ 
+@@ -149,10 +243,11 @@ Item {
+ 
+                     ColumnLayout {
+                         anchors.fill: parent
+-                        anchors.margins: 8
++                        anchors.margins: root.weekOnly ? 4 * root.metricScale : 8 * root.metricScale
+                         spacing: 0
+ 
+                         RowLayout {
++                            visible: root.showWeekLetters
+                             Layout.fillWidth: true
+                             Layout.alignment: Qt.AlignHCenter
+ 
+@@ -160,6 +255,7 @@ Item {
+                                 model: 7
+                                 delegate: CalendarDayButton {
+                                     required property int index
++                                    metricScale: root.metricScale
+                                     day: root.getDayAbbrev(index)
+                                     isToday: 0
+                                     bold: true
+@@ -169,24 +265,25 @@ Item {
+                         }
+ 
+                         Separator {
++                            visible: root.showWeekLetters
+                             Layout.fillWidth: true
+-                            Layout.leftMargin: 8
+-                            Layout.rightMargin: 8
+-                            Layout.preferredHeight: 2
++                            Layout.leftMargin: 8 * root.metricScale
++                            Layout.rightMargin: 8 * root.metricScale
++                            Layout.preferredHeight: 2 * root.metricScale
+                             vert: false
+                         }
+ 
+                         Repeater {
+-                            model: 6
++                            model: root.gridRows
+                             delegate: StyledRect {
+                                 Layout.fillWidth: true
+                                 Layout.alignment: Qt.AlignHCenter
+-                                Layout.preferredHeight: 28
++                                Layout.preferredHeight: 28 * root.metricScale
+                                 variant: (rowIndex === root.currentWeekRow) ? "pane" : "transparent"
+                                 radius: Styling.radius(-4)
+ 
+                                 required property int index
+-                                property int rowIndex: index
++                                property int rowIndex: root.weekOnly ? root.weekRow : index
+ 
+                                 RowLayout {
+                                     anchors.fill: parent
+@@ -196,8 +293,19 @@ Item {
+                                         model: 7
+                                         delegate: CalendarDayButton {
+                                             required property int index
++                                            metricScale: root.metricScale
++                                            eventDots: root.dotsFor(rowIndex, index)
+                                             day: calendarLayout[rowIndex][index].day
+                                             isToday: calendarLayout[rowIndex][index].today
++                                            selected: root.isSelected(rowIndex, index)
++
++                                            // The whole 28px square is the target. Disabled while a
++                                            // card is being dragged, where the drag owns every press.
++                                            MouseArea {
++                                                anchors.fill: parent
++                                                enabled: root.dayClicksEnabled
++                                                onClicked: root.dayActivated(root.keyFor(rowIndex, index))
++                                            }
+                                         }
+                                     }
+                                 }
+diff --git i/modules/widgets/dashboard/widgets/calendar/CalendarDayButton.qml w/modules/widgets/dashboard/widgets/calendar/CalendarDayButton.qml
+index 4a99c80..04efde9 100644
+--- i/modules/widgets/dashboard/widgets/calendar/CalendarDayButton.qml
++++ w/modules/widgets/dashboard/widgets/calendar/CalendarDayButton.qml
+@@ -11,11 +11,23 @@ Rectangle {
+     required property int isToday
+     property bool bold: false
+     property bool isCurrentDayOfWeek: false
++    // Set by the calendar that owns this cell, so the cell and its digit grow together
++    // with the rest of the panel; see Calendar.qml's metricScale.
++    property real metricScale: 1
++
++    // Colours of the calendars with something on this day, one dot each. Empty by default,
++    // and the dashboard never sets it, so its own cells stay exactly as they were.
++    property var eventDots: []
++
++    // The day whose detail is open: a ring on the pill's own edge, never a fill — today is
++    // the filled pill and both can be true at once — and never bigger than the cell, which
++    // the row it lives in would clip.
++    property bool selected: false
+ 
+     Layout.fillWidth: true
+     Layout.fillHeight: false
+-    Layout.preferredWidth: 28
+-    Layout.preferredHeight: 28
++    Layout.preferredWidth: 28 * metricScale
++    Layout.preferredHeight: 28 * metricScale
+ 
+     color: "transparent"
+     radius: Styling.radius(-2)
+@@ -33,7 +45,7 @@ Rectangle {
+             horizontalAlignment: Text.AlignHCenter
+             verticalAlignment: Text.AlignVCenter
+             font.weight: Font.Bold
+-            font.pixelSize: Styling.fontSize(-2)
++            font.pixelSize: Styling.fontSize(-2) * metricScale
+             font.family: Config.defaultFont
+             color: {
+                 if (isToday === 1)
+@@ -54,4 +66,38 @@ Rectangle {
+             }
+         }
+     }
++
++    Rectangle {
++        anchors.centerIn: parent
++        width: Math.min(parent.width, parent.height)
++        height: width
++        visible: button.selected
++        color: "transparent"
++        radius: parent.radius
++        border.width: Math.max(1, Math.round(1 * button.metricScale))
++        // Whatever reads on what is under it: the pill's own ink when today is filled, the
++        // theme's primary when the cell is empty.
++        border.color: (isToday === 1) ? Styling.srItem("primary") : Colors.primary
++    }
++
++    Row {
++        visible: button.eventDots.length > 0
++        anchors.horizontalCenter: parent.horizontalCenter
++        anchors.bottom: parent.bottom
++        anchors.bottomMargin: 2 * button.metricScale
++        spacing: 2 * button.metricScale
++
++        Repeater {
++            // Three is what a cell this size fits; a fourth calendar keeps its dot in the
++            // agenda instead of squeezing the row.
++            model: Math.min(3, button.eventDots.length)
++
++            delegate: Rectangle {
++                width: 3 * button.metricScale
++                height: 3 * button.metricScale
++                radius: width / 2
++                color: button.eventDots[index]
++            }
++        }
++    }
+ }
+diff --git i/modules/widgets/dashboard/widgets/calendar/layout.js w/modules/widgets/dashboard/widgets/calendar/layout.js
+index fa7388a..49c0a8e 100644
+--- i/modules/widgets/dashboard/widgets/calendar/layout.js
++++ w/modules/widgets/dashboard/widgets/calendar/layout.js
+@@ -32,12 +32,10 @@ function getNextMonthDays(month, year) {
+ }
+ 
+ function getPrevMonthDays(month, year) {
+-    const leapYear = checkLeapYear(year);
+-    if (month == 3 && leapYear) return 29;
+-    if (month == 3 && !leapYear) return 28;
+-    if (month == 1) return 31;
+-    if ((month <= 7 && month % 2 == 1) || (month >= 8 && month % 2 == 0)) return 30;
+-    return 31;
++    // The length of the month before this one, asked of the calendar itself. The parity
++    // table this used to be answered 30 for July, so August's grid drew its leading days
++    // (27 28 29 30) a day early.
++    return new Date(year, month - 1, 0).getDate();
+ }
+ 
+ function getDateInXMonthsTime(x, baseDate) {

@@ -1,0 +1,8 @@
+diff --git i/modules/services/Visibilities.qml w/modules/services/Visibilities.qml
+index ee97b092..79d56ac5 100644
+--- i/modules/services/Visibilities.qml
++++ w/modules/services/Visibilities.qml
+@@ -211,2 +211,3 @@ Singleton {
+             property bool tools: false
++            property bool desktopwidgets: false
+             property bool presets: false

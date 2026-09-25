@@ -1,0 +1,181 @@
+diff --git i/shell.qml w/shell.qml
+index 888996d..5353ddf 100644
+--- i/shell.qml
++++ w/shell.qml
+@@ -14,9 +14,12 @@ import qs.modules.widgets.dashboard.wallpapers
+ import qs.modules.notch
+ import qs.modules.widgets.overview
+ import qs.modules.widgets.presets
++import qs.modules.widgets.wallpaperpicker
+ import qs.modules.services
++import qs.modules.widgets.pkglauncher
+ import qs.modules.corners
+ import qs.modules.frame
++import qs.modules.widgets.desktopwidgets
+ import qs.modules.components
+ import qs.modules.desktop
+ import qs.modules.lockscreen
+@@ -77,7 +80,19 @@ ShellRoot {
+             }
+ 
+             Loader {
+-                active: Config.theme.enableCorners && Config.roundness > 0
++                // roadie: not before the theme has loaded (the
++                // default-enabled corners flashed as bare boxes at every
++                // screen corner for a moment), and only while the frame is in
++                // place, so they leave and arrive with it.
++                //
++                // And not on an output a fullscreen window covers. The
++                // corners' own check only looks at the monitor's normal
++                // workspace, plus a fast path that needs the monitor to be
++                // the focused one -- so a game on a special workspace got its
++                // rounded corners back the moment focus went to another
++                // screen. The panel's per-output scan counts the open special
++                // workspace, and is what the bar, frame and notch go by.
++                active: Config.themeReady && Config.theme.enableCorners && Config.roundness > 0 && ShellTransitions.reserve && !unifiedPanel.hasFullscreenWindow
+                 sourceComponent: ScreenCorners {
+                     screen: screenShellContainer.modelData
+                 }
+@@ -90,12 +105,33 @@ ShellRoot {
+                 // Bar status for reservations
+                 barEnabled: {
+                     const list = (Config.bar && Config.bar.screenList !== undefined ? Config.bar.screenList : []);
+-                    return (!list || list.length === 0 || list.indexOf(screen.name) !== -1);
++                    return (!list || list.length === 0 || list.indexOf(screen?.name ?? "") !== -1);
+                 }
+                 barPosition: unifiedPanel.barPosition
+-                barPinned: unifiedPanel.pinned
+-                barSize: (unifiedPanel.barPosition === "left" || unifiedPanel.barPosition === "right") ? unifiedPanel.barTargetWidth : unifiedPanel.barTargetHeight
+-                barOuterMargin: unifiedPanel.barOuterMargin
++                // A bar that has hidden itself for a fullscreen window must
++                // stop holding space, or the strip it used to occupy stays
++                // reserved and every window below keeps a gap against the
++                // screen edge. The bar reads fullscreen off the active
++                // toplevel, which is one global window, so it hides on every
++                // screen at once -- the reservation follows it screen for
++                // screen. Same for the dock.
++                // The bar's reserved size is walked along its fullscreen slide
++                // (barZoneProgress: 1 held, 0 released) rather than switched,
++                // so the compositor lays the windows out in lockstep with the
++                // pills. The whole bar allowance -- bar, outer margin and the
++                // frame's contain-bar extra -- is folded into barSize here so
++                // it scales as one; containBar is therefore passed as false.
++                // Not gated on `pinned`: an unpinned bar's zone follows its
++                // auto-hide slide (0 while hidden), so the windows move with it.
++                barPinned: unifiedPanel.barZoneProgress > 0
++                barSize: {
++                    const vertical = unifiedPanel.barPosition === "left" || unifiedPanel.barPosition === "right";
++                    const frameOn = (Config.bar && Config.bar.frameEnabled !== undefined ? Config.bar.frameEnabled : false);
++                    const frameExtra = (unifiedPanel.containBar && frameOn) ? (Config.bar && Config.bar.frameThickness !== undefined ? Config.bar.frameThickness : 6) : 0;
++                    const full = (vertical ? unifiedPanel.barTargetWidth : unifiedPanel.barTargetHeight) + unifiedPanel.barOuterMargin + frameExtra;
++                    return Math.round(full * unifiedPanel.barZoneProgress);
++                }
++                barOuterMargin: 0
+ 
+                 // Dock status for reservations
+                 dockEnabled: {
+@@ -105,18 +141,21 @@ ShellRoot {
+                     const list = (Config.dock && Config.dock.screenList !== undefined ? Config.dock.screenList : []);
+                     if (!list || list.length === 0)
+                         return true;
+-                    return list.indexOf(screenShellContainer.modelData.name) !== -1;
++                    return list.indexOf(screenShellContainer.modelData?.name ?? "") !== -1;
+                 }
+                 dockPosition: unifiedPanel.dockPosition
+-                dockPinned: unifiedPanel.dockPinned
++                dockPinned: unifiedPanel.dockPinned && !unifiedPanel.dockFullscreen
+                 dockHeight: unifiedPanel.dockHeight
+-                containBar: unifiedPanel.containBar
++                containBar: false // folded into barSize above
+ 
+-                frameEnabled: (Config.bar && Config.bar.frameEnabled !== undefined ? Config.bar.frameEnabled : false)
++                // The frame, unlike the bar, hides per output, so its
++                // reservation is dropped only on the screen showing the
++                // fullscreen window.
++                frameEnabled: (Config.bar && Config.bar.frameEnabled !== undefined ? Config.bar.frameEnabled : false) && !unifiedPanel.hasFullscreenWindow
+                 frameThickness: (Config.bar && Config.bar.frameThickness !== undefined ? Config.bar.frameThickness : 6)
+ 
+                 // Sidebar status for reservations
+-                sidebarEnabled: GlobalStates.assistantVisible && screenShellContainer.modelData.name === GlobalStates.assistantScreenName
++                sidebarEnabled: GlobalStates.assistantVisible && screenShellContainer.modelData?.name === GlobalStates.assistantScreenName
+                 sidebarPinned: GlobalStates.assistantPinned
+                 sidebarWidth: GlobalStates.assistantWidth
+                 sidebarPosition: GlobalStates.assistantPosition
+@@ -136,7 +175,7 @@ ShellRoot {
+ 
+         Loader {
+             id: overviewLoader
+-            active: ((Config.overview && Config.overview.enabled !== undefined ? Config.overview.enabled : true)) && SuspendManager.wakeReady && (Visibilities.getForScreen(modelData.name) ? Visibilities.getForScreen(modelData.name).overview : false)
++            active: ((Config.overview && Config.overview.enabled !== undefined ? Config.overview.enabled : true)) && SuspendManager.wakeReady && (Visibilities.getForScreen(modelData?.name ?? "")?.overview ?? false)
+             required property ShellScreen modelData
+             sourceComponent: OverviewPopup {
+                 screen: overviewLoader.modelData
+@@ -156,7 +195,7 @@ ShellRoot {
+ 
+         Loader {
+             id: presetsLoader
+-            active: SuspendManager.wakeReady && (Visibilities.getForScreen(modelData.name) ? Visibilities.getForScreen(modelData.name).presets : false)
++            active: SuspendManager.wakeReady && (Visibilities.getForScreen(modelData?.name ?? "")?.presets ?? false)
+             required property ShellScreen modelData
+             sourceComponent: PresetsPopup {
+                 screen: presetsLoader.modelData
+@@ -164,6 +203,59 @@ ShellRoot {
+         }
+     }
+ 
++    // Wallpaper picker popup. Eager (no Loader): spawning the layer window on
++    // demand took ~2s; an idle picker is not mapped so it is invisible and
++    // free, and it opens instantly.
++    Variants {
++        model: Quickshell.screens
++
++        WallpaperPicker {
++            required property ShellScreen modelData
++            screen: modelData
++        }
++    }
++
++    // Package launcher overlay (pacseek-style). Eager: an idle overlay is
++    // not mapped, so it costs nothing and opens instantly.
++    Variants {
++        model: Quickshell.screens
++
++        PkgLauncher {
++            required property ShellScreen modelData
++            screen: modelData
++        }
++    }
++
++    // Desktop widgets (input-transparent Bottom layer, under windows).
++    Variants {
++        model: Quickshell.screens
++
++        WidgetLayer {
++            required property ShellScreen modelData
++            screen: modelData
++        }
++    }
++
++    // Desktop widgets management menu (one Top-layer surface per screen).
++    Variants {
++        model: Quickshell.screens
++
++        WidgetMenu {
++            required property ShellScreen modelData
++            screen: modelData
++        }
++    }
++
++    // Desktop widgets day detail (one Top-layer surface per screen, opened by a day tap).
++    Variants {
++        model: Quickshell.screens
++
++        DayDetail {
++            required property ShellScreen modelData
++            screen: modelData
++        }
++    }
++
+     // Secure WlSessionLock lockscreen
+     WlSessionLock {
+         id: sessionLock

@@ -1,0 +1,31 @@
+diff --git i/modules/bar/BarContent.qml w/modules/bar/BarContent.qml
+--- i/modules/bar/BarContent.qml
++++ w/modules/bar/BarContent.qml
+@@ -1016,6 +1016,13 @@ Item {
+                             endRadius: root.innerRadius
+                         }
+ 
++                        WidgetsButton {
++                            id: widgetsButton
++                            startRadius: root.innerRadius
++                            endRadius: root.innerRadius
++                            enableShadow: root.shadowsEnabled
++                        }
++
+                         Bar.BatteryIndicator {
+                             id: batteryIndicator
+                             bar: root
+@@ -1268,6 +1275,13 @@ Item {
+                             endRadius: root.innerRadius
+                         }
+ 
++                        WidgetsButton {
++                            id: widgetsButtonVert
++                            startRadius: root.innerRadius
++                            endRadius: root.innerRadius
++                            enableShadow: root.shadowsEnabled
++                        }
++
+                         Bar.BatteryIndicator {
+                             id: batteryIndicatorVert
+                             bar: root

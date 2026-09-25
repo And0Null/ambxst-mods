@@ -4,5 +4,7 @@
 
 # workbench for mods in progress, not ready for the repo
 /staging/
+# byte code left by the packages' own test harnesses
+__pycache__/
 # Local AI runtime state
 .atl/

@@ -1,0 +1,9 @@
+{
+  "design": "custom",
+  "opacity": 0.85,
+  "widgets": [
+    { "type": "clock", "family": "full", "ax": "left", "ox": 40, "ay": "top", "oy": 48,  "w": 280, "h": 150, "enabled": true, "children": [], "direction": "column" },
+    { "type": "clock", "family": "full", "ax": "left", "ox": 40, "ay": "top", "oy": 220, "w": 280, "h": 190, "enabled": true, "children": [], "direction": "column" },
+    { "type": "clock", "family": "full", "ax": "left", "ox": 40, "ay": "top", "oy": 430, "w": 280, "h": 260, "enabled": true, "children": [], "direction": "column" }
+  ]
+}

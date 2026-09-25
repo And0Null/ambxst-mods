@@ -1,0 +1,10 @@
+{
+  "design": "custom",
+  "opacity": 0.85,
+  "widgets": [
+    { "type": "system", "family": "compact",  "ax": "left", "ox": 40, "ay": "top", "oy": 48,  "w": 280, "h": 80,  "enabled": true, "children": [], "direction": "column" },
+    { "type": "system", "family": "full",     "ax": "left", "ox": 40, "ay": "top", "oy": 170, "w": 280, "h": 190, "enabled": true, "children": [], "direction": "column" },
+    { "type": "system", "family": "detailed", "ax": "left", "ox": 40, "ay": "top", "oy": 400, "w": 280, "h": 240, "enabled": true, "children": [], "direction": "column" },
+    { "type": "system", "family": "detailed", "ax": "right", "ox": 40, "ay": "top", "oy": 400, "w": 280, "h": 360, "enabled": true, "children": [], "direction": "column" }
+  ]
+}
