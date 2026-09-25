@@ -1,0 +1,33 @@
+diff --git c/modules/bar/BarContent.qml w/modules/bar/BarContent.qml
+--- c/modules/bar/BarContent.qml
++++ w/modules/bar/BarContent.qml
+@@ -521,5 +521,13 @@ Item {
+                         }
+
++                        NearbyButton {
++                            id: nearbyButton
++                            bar: root
++                            startRadius: root.innerRadius
++                            endRadius: root.innerRadius
++                            enableShadow: root.shadowsEnabled
++                        }
++
+                         ControlsButton {
+                             id: controlsButton
+                             bar: root
+@@ -727,6 +727,15 @@ Item {
+                             }
+                         }
+
++                        NearbyButton {
++                            id: nearbyButtonVert
++                            bar: root
++                            startRadius: root.innerRadius
++                            endRadius: root.innerRadius
++                            vertical: true
++                            enableShadow: root.shadowsEnabled
++                        }
++
+                         ControlsButton {
+                             id: controlsButtonVert
+                             bar: root

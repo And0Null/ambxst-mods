@@ -1,0 +1,75 @@
+LAN Share notices for and0null.lan-share 1.2.0.
+
+This package vendors the oma.nearby 1.1.2 helper binary
+(payload/bin/narciss-lan-share-helper, pinned x86_64 build) and ports its
+Model.js shaping helpers into overlays/modules/widgets/nearby/NearbyModel.js.
+The helper speaks the LocalSend protocol on port 53317. This mod is an
+independent integration; it is not affiliated with or endorsed by LocalSend.
+
+## oma.nearby (MIT, jfg96)
+
+MIT License
+
+Copyright (c) 2026 jfg96
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+Source reference: oma.nearby 1.1.2 (MIT jfg96).
+
+## localsend-rs (MIT, localsend-rs contributors)
+
+The vendored helper links a modified copy of localsend-rs as a Rust library
+dependency (upstream package metadata version 0.1.2 in the oma.nearby tree).
+
+- Project: https://github.com/CrossCopy/localsend-rs
+- Package license: MIT
+- Local copy in oma.nearby: backend/vendor/localsend-rs
+
+MIT License
+
+Copyright (c) localsend-rs contributors
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+The vendored crate's own THIRD_PARTY_NOTICES.md is retained upstream. The copy
+contains local changes used by Nearby and must not be assumed identical to an
+upstream release. See oma.nearby VENDORED_LOCALSEND_RS.md for the maintenance
+record.
+
+## LocalSend protocol (Apache-2.0 reference, Tien Do Nam 2022-2024)
+
+Protocol behavior and route compatibility were implemented with reference to
+the LocalSend project (https://github.com/localsend/localsend, Apache-2.0).
+Embedded web assets in the vendored crate are CrossCopy-specific and require
+no Flutter or Dart runtime. This mod is compatible with the LocalSend
+protocol; it is not affiliated with or endorsed by LocalSend.

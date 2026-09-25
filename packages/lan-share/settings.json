@@ -1,0 +1,14 @@
+{
+  "$schema": "https://raw.githubusercontent.com/Axenide/Ambxst/dev/docs/mods/settings.schema.json",
+  "version": 1,
+  "fields": [
+    {
+      "key": "deviceName",
+      "label": "Device name",
+      "description": "Name other devices see for this machine on the LAN. Empty uses the system hostname and then the login user. Applies on the next receiver start, so restart the shell after changing it.",
+      "type": "string",
+      "default": "",
+      "restartRequired": true
+    }
+  ]
+}

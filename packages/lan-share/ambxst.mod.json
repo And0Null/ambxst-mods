@@ -1,0 +1,61 @@
+{
+    "$schema": "https://raw.githubusercontent.com/Axenide/Ambxst/dev/docs/mods/manifest.schema.json",
+    "manifestVersion": 1,
+    "id": "and0null.lan-share",
+    "name": "LAN Share",
+    "version": "1.2.0",
+    "description": "LAN peer presence and transfer via a vendored LocalSend helper (discovery plus text send plus incoming-file accept plus PC-to-phone file send via a zenity picker). Receiver stays OFF until enabled; the announced device name is configurable and defaults to the system hostname.",
+    "license": "MIT",
+    "author": "And0Null",
+    "compatibility": {
+        "api": 1,
+        "ambxst": ">=1.3.0 <1.4.0",
+        "testedBaseCommits": ["af9f8ad4f42d7cd77f57a7c75f6a2a5d1fb59674"]
+    },
+    "dependencies": [],
+    "dependencySources": {},
+    "conflicts": [],
+    "commands": ["zenity"],
+    "permissions": [
+        "Spawns the vendored LocalSend helper (modules/widgets/nearby/bin/narciss-lan-share-helper) as a receiver on TCP/UDP port 53317; zero LAN traffic while the receiver is OFF",
+        "Reads the device's own hostname to announce a default name other devices can see",
+        "Reads clipboard text via wl-paste and writes received text via wl-copy for text send",
+        "Saves accepted incoming files to ~/Downloads with a unique suffix on name collision",
+        "Sends desktop notifications via notify-send on transfer completion",
+        "Spawns zenity --file-selection --multiple for the Send files picker (PC to phone)"
+    ],
+    "settings": {
+        "schema": "settings.json"
+    },
+    "operations": [
+        {
+            "type": "overlay",
+            "source": "overlays/modules/widgets/nearby/NearbyModel.js",
+            "target": "modules/widgets/nearby/NearbyModel.js"
+        },
+        {
+            "type": "overlay",
+            "source": "payload/bin/narciss-lan-share-helper",
+            "target": "modules/widgets/nearby/bin/narciss-lan-share-helper"
+        },
+        {
+            "type": "overlay",
+            "source": "overlays/modules/services/NearbyService.qml",
+            "target": "modules/services/NearbyService.qml"
+        },
+        {
+            "type": "overlay",
+            "source": "overlays/modules/bar/NearbyButton.qml",
+            "target": "modules/bar/NearbyButton.qml"
+        },
+        {
+            "type": "overlay",
+            "source": "overlays/modules/widgets/nearby/NearbyCard.qml",
+            "target": "modules/widgets/nearby/NearbyCard.qml"
+        },
+        {
+            "type": "patch",
+            "source": "patches/modules/bar/BarContent.qml.patch"
+        }
+    ]
+}
