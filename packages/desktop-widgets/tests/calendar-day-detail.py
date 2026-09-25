@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """The day detail's two halves, checked against the real sources.
 
-Half one is the SERVICE: three feeds (a Personal, a Trabajo and a Familia fixture) are
+Half one is the SERVICE: three feeds (a Personal, a Work and a Family fixture) are
 loaded through the same file the shell reads, and the questions the day detail depends on
 are asked of `CalendarEventsService` itself:
 
@@ -45,8 +45,8 @@ SERVICE = MOD / "overlays/modules/services/CalendarEventsService.qml"
 # shares with a later source.
 SOURCES = [
     ("Personal", "cyan", FIXTURES / "calendar-sample.ics"),
-    ("Trabajo", "green", FIXTURES / "calendar-work.ics"),
-    ("Familia", "magenta", FIXTURES / "calendar-family.ics"),
+    ("Work", "green", FIXTURES / "calendar-work.ics"),
+    ("Family", "magenta", FIXTURES / "calendar-family.ics"),
 ]
 
 # 2026-09-24 in America/Bogota holds five events across the three calendars, two of which
@@ -54,11 +54,11 @@ SOURCES = [
 # single all-day one; 09-20 nothing at all.
 DAY = "2026-09-24"
 DAY_ROWS = [
-    ("09:00", "Planning de sprint", "green", "Trabajo"),
-    ("14:00", "Dentista", "cyan", "Personal"),
-    ("14:30", "Repaso con el cliente", "green", "Trabajo"),
-    ("16:00", "Revisión de código", "green", "Trabajo"),
-    ("19:00", "Cena familiar", "magenta", "Familia"),
+    ("09:00", "Sprint planning", "green", "Work"),
+    ("14:00", "Dentist", "cyan", "Personal"),
+    ("14:30", "Client catch-up", "green", "Work"),
+    ("16:00", "Code review", "green", "Work"),
+    ("19:00", "Family dinner", "magenta", "Family"),
 ]
 
 PROBE = '''import QtQuick
@@ -299,7 +299,7 @@ ShellRoot {
             allDay: detail.timeLabel({ allDay: true, startMs: 0, endMs: 0 }),
             timed: detail.timeLabel({ allDay: false, startMs: 0, endMs: 3600000 }),
             timedSingle: detail.timeLabel({ allDay: false, startMs: 0, endMs: 0 }),
-            place: detail.metaOf({ location: "Oficina", sourceName: "Trabajo" }),
+            place: detail.metaOf({ location: "Office", sourceName: "Work" }),
             bare: detail.metaOf({ location: "", sourceName: "" }) }));
 
         DesktopWidgetsService.closeDay();
@@ -399,7 +399,7 @@ def check(data):
         why.append(f"the merge holds {merged.get('events')} events, expected {want_total}")
     if merged.get("copies") != 1:
         why.append(f"the shared UID survives {merged.get('copies')} times, expected once")
-    if merged.get("summary") != "Reunión de equipo, semanal":
+    if merged.get("summary") != "Weekly team meeting":
         why.append(f"the surviving copy is {merged.get('summary')!r}, expected the first source's")
     if merged.get("source") != "Personal":
         why.append(f"the surviving copy belongs to {merged.get('source')!r}, expected Personal")
@@ -426,7 +426,7 @@ def check(data):
     if len({r["source"] for r in two}) != 2:
         why.append("the two all-day events do not come from two different calendars")
     span = days.get("2026-09-23") or []
-    if not any(r["title"] == "Día libre" and r["allDay"] for r in span):
+    if not any(r["title"] == "Day off" and r["allDay"] for r in span):
         why.append("the all-day event that starts 09-23 is missing from that day")
     if not any(r["at"] == "17:00" for r in span):
         why.append("the UTC-time event is not on 09-23 at 17:00 local")
@@ -513,7 +513,7 @@ def ui_check(data):
                            f"expected {want_title!r}/{want_color}/{want_source}")
             if not row["time"].startswith(want_at):
                 why.append(f"{want_title!r} is drawn at {row['time']!r}, expected to start {want_at}")
-    if five.get("meta") != "Casa de la abuela  ·  Familia":
+    if five.get("meta") != "Grandma's place  ·  Family":
         why.append(f"the last row's meta line is {five.get('meta')!r}, expected place and calendar")
     if (details.get("2026-09-25") or {}).get("times") != ["All day", "All day"]:
         why.append(f"the all-day day reads {(details.get('2026-09-25') or {}).get('times')}, "
@@ -529,7 +529,7 @@ def ui_check(data):
     if labels.get("timedSingle") != ranged.split("-")[0]:
         why.append(f"an event with no real end is not drawn as its start alone: "
                    f"{labels.get('timedSingle')!r} vs {ranged!r}")
-    if labels.get("place") != "Oficina  ·  Trabajo":
+    if labels.get("place") != "Office  ·  Work":
         why.append(f"the meta line joins place and calendar as {labels.get('place')!r}")
     if labels.get("bare") != "":
         why.append(f"an event with no place and no calendar shows {labels.get('bare')!r}")

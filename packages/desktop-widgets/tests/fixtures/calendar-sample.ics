@@ -20,10 +20,10 @@ DTSTART;TZID=America/Bogota:20260922T090000
 DTEND;TZID=America/Bogota:20260922T100000
 RRULE:FREQ=WEEKLY;BYDAY=TU;COUNT=10
 EXDATE;TZID=America/Bogota:20261006T090000
-SUMMARY:Reunión de equipo\, semanal
+SUMMARY:Weekly team meeting
 DESCRIPTION:Esta linea venia plegada en el archivo original y el parser tiene
   que desplegarla\; con punto y coma escapado y salto\\nforzado.
-LOCATION:Oficina
+LOCATION:Office
 UID:standup-001@example.com
 BEGIN:VALARM
 ACTION:DISPLAY
@@ -33,19 +33,19 @@ END:VEVENT
 BEGIN:VEVENT
 DTSTART;VALUE=DATE:20260923
 DTEND;VALUE=DATE:20260924
-SUMMARY:Día libre
+SUMMARY:Day off
 UID:allday-002@example.com
 END:VEVENT
 BEGIN:VEVENT
 DTSTART;VALUE=DATE:20260925
 DTEND;VALUE=DATE:20260928
-SUMMARY:Viaje a la costa
+SUMMARY:Coast trip
 UID:multi-003@example.com
 END:VEVENT
 BEGIN:VEVENT
 DTSTART:20260923T220000Z
 DTEND:20260923T230000Z
-SUMMARY:Llamada con el equipo de Berlín
+SUMMARY:Call with the Berlin team
 X-GOOGLE-CONFERENCE:https://meet.example.com/abc-defg-hij
 UID:utc-004@example.com
 END:VEVENT
@@ -53,32 +53,32 @@ BEGIN:VEVENT
 DTSTART;TZID=America/Bogota:20260831T120000
 DTEND;TZID=America/Bogota:20260831T130000
 RRULE:FREQ=MONTHLY;BYMONTHDAY=31;COUNT=5
-SUMMARY:Cierre de mes
+SUMMARY:Month close
 UID:monthly-005@example.com
 END:VEVENT
 BEGIN:VEVENT
 DTSTART;TZID=America/Bogota:20260924T140000
 DURATION:PT1H30M
-SUMMARY:Dentista
+SUMMARY:Dentist
 UID:duration-006@example.com
 END:VEVENT
 BEGIN:VEVENT
 DTSTART;VALUE=DATE:20261225
 RRULE:FREQ=YEARLY;COUNT=3
-SUMMARY:Cumpleaños
+SUMMARY:Birthday
 UID:yearly-007@example.com
 END:VEVENT
 BEGIN:VEVENT
 DTSTART;TZID=America/Bogota:20260929T160000
 DTEND;TZID=America/Bogota:20260929T173000
-SUMMARY:Parcial de estructuras
+SUMMARY:Structures midterm
 ATTENDEE;CN=Someone:mailto:someone@example.com
 ORGANIZER:mailto:someone@example.com
 UID:single-008@example.com
 END:VEVENT
 BEGIN:VTODO
 DTSTART:20260924T090000Z
-SUMMARY:Comprar cafe
+SUMMARY:Buy coffee
 UID:todo-009@example.com
 END:VTODO
 END:VCALENDAR
