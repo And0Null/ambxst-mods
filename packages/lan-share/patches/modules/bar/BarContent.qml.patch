@@ -1,9 +1,11 @@
-diff --git c/modules/bar/BarContent.qml w/modules/bar/BarContent.qml
---- c/modules/bar/BarContent.qml
+diff --git i/modules/bar/BarContent.qml w/modules/bar/BarContent.qml
+index b9e57ca..40cf9c7 100644
+--- i/modules/bar/BarContent.qml
 +++ w/modules/bar/BarContent.qml
-@@ -521,5 +521,13 @@ Item {
+@@ -520,6 +520,14 @@ Item {
+                             endRadius: root.innerRadius
                          }
-
+ 
 +                        LanShareButton {
 +                            id: lanShareButton
 +                            bar: root
@@ -15,10 +17,10 @@ diff --git c/modules/bar/BarContent.qml w/modules/bar/BarContent.qml
                          ControlsButton {
                              id: controlsButton
                              bar: root
-@@ -727,6 +727,15 @@ Item {
+@@ -727,6 +735,15 @@ Item {
                              }
                          }
-
+ 
 +                        LanShareButton {
 +                            id: lanShareButtonVert
 +                            bar: root
