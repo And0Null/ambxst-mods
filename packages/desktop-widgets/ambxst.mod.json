@@ -1,0 +1,115 @@
+{
+    "$schema": "https://raw.githubusercontent.com/Axenide/Ambxst/dev/docs/mods/manifest.schema.json",
+    "manifestVersion": 1,
+    "id": "and0null.desktop-widgets",
+    "name": "Desktop widgets",
+    "version": "1.15.0",
+    "description": "Widgets on the desktop, not in the dashboard: a clock, a calendar (with an agenda fed by your own iCal/ICS feeds), a weather card and a system card (CPU/temp/RAM, and GPU when detected) drawn on an input-transparent Bottom layer per output, so they sit under your windows like desktop icons and step aside for fullscreen. Every card asks for one of three content families (compact, full, detailed) and each family carries the card size it needs, so picking one resizes the card in either direction - the minimal tier shrinks it, the calendar's smallest being the week row instead of a squeezed month - while a card taller than its family's normal size spends the height on bigger content instead of empty glass. A management menu (bar button or `ambxst run desktop-widgets`) adds widgets, hides or removes them, picks each widget's content family (a segmented switch per row, group children included), sets the card opacity and toggles the drag-to-move edit mode, persisting every change. Layout lives in ~/.config/ambxst/desktop-widgets.json: each card stores an anchor (which screen edge it sticks to per axis, or the centre) plus its distance to that edge in pixels, so gaps and margins are identical on every resolution, on one monitor or several. A design picker applies a whole arrangement in one click (Split, Rail, Studio, Row, Cluster, Minimal, Center), each shown as a miniature drawn from the same placement arithmetic, and every design is checked to fit the smallest screen and clear the bar and dock.",
+    "license": "MIT",
+    "author": "And0Null",
+    "compatibility": {
+        "api": 1,
+        "ambxst": ">=1.3.0 <1.4.0",
+        "testedBaseCommits": [
+            "af9f8ad4f42d7cd77f57a7c75f6a2a5d1fb59674",
+            "2a704c438ddc0b94a11f4e4cf32a16220b62141f"
+        ]
+    },
+    "dependencies": [],
+    "dependencySources": {},
+    "conflicts": [],
+    "permissions": [
+        "Reads and writes ~/.config/ambxst/desktop-widgets.json (widget list, positions, per-widget visibility, opacity)",
+        "Adds a Bottom-layer panel per screen (input-transparent, hidden while a fullscreen window owns the output)",
+        "Adds a Top-layer management menu per screen (keyboard focus only while the menu is open)",
+        "Adds a bar button that toggles the management menu",
+        "Reads ~/.config/ambxst/desktop-widgets-calendars.json (calendar sources: a feed URL or a local .ics path) and fetches those feeds over https every 30 minutes"
+    ],
+    "operations": [
+        {
+            "type": "overlay",
+            "source": "overlays/modules/services/DesktopWidgetsService.qml",
+            "target": "modules/services/DesktopWidgetsService.qml"
+        },
+        {
+            "type": "overlay",
+            "source": "overlays/modules/services/CalendarEventsService.qml",
+            "target": "modules/services/CalendarEventsService.qml"
+        },
+        {
+            "type": "overlay",
+            "source": "overlays/modules/widgets/desktopwidgets/WidgetLayer.qml",
+            "target": "modules/widgets/desktopwidgets/WidgetLayer.qml"
+        },
+        {
+            "type": "overlay",
+            "source": "overlays/modules/widgets/desktopwidgets/WidgetFrame.qml",
+            "target": "modules/widgets/desktopwidgets/WidgetFrame.qml"
+        },
+        {
+            "type": "overlay",
+            "source": "overlays/modules/widgets/desktopwidgets/ClockWidget.qml",
+            "target": "modules/widgets/desktopwidgets/ClockWidget.qml"
+        },
+        {
+            "type": "overlay",
+            "source": "overlays/modules/widgets/desktopwidgets/WidgetType.js",
+            "target": "modules/widgets/desktopwidgets/WidgetType.js"
+        },
+        {
+            "type": "overlay",
+            "source": "overlays/modules/widgets/desktopwidgets/ics.js",
+            "target": "modules/widgets/desktopwidgets/ics.js"
+        },
+        {
+            "type": "overlay",
+            "source": "overlays/modules/widgets/desktopwidgets/CalendarWidget.qml",
+            "target": "modules/widgets/desktopwidgets/CalendarWidget.qml"
+        },
+        {
+            "type": "overlay",
+            "source": "overlays/modules/widgets/desktopwidgets/DayDetail.qml",
+            "target": "modules/widgets/desktopwidgets/DayDetail.qml"
+        },
+        {
+            "type": "overlay",
+            "source": "overlays/modules/widgets/desktopwidgets/WeatherWidget.qml",
+            "target": "modules/widgets/desktopwidgets/WeatherWidget.qml"
+        },
+        {
+            "type": "overlay",
+            "source": "overlays/modules/widgets/desktopwidgets/SystemWidget.qml",
+            "target": "modules/widgets/desktopwidgets/SystemWidget.qml"
+        },
+        {
+            "type": "overlay",
+            "source": "overlays/modules/widgets/desktopwidgets/WidgetMenu.qml",
+            "target": "modules/widgets/desktopwidgets/WidgetMenu.qml"
+        },
+        {
+            "type": "overlay",
+            "source": "overlays/modules/bar/WidgetsButton.qml",
+            "target": "modules/bar/WidgetsButton.qml"
+        },
+        {
+            "type": "patch",
+            "source": "patches/visibilities.patch"
+        },
+        {
+            "type": "patch",
+            "source": "patches/globalshortcuts.patch"
+        },
+        {
+            "type": "patch",
+            "source": "patches/shell.patch"
+        },
+        {
+            "type": "patch",
+            "source": "patches/barcontent.patch"
+        },
+        {
+            "type": "patch",
+            "source": "patches/calendar.patch"
+        }
+    ]
+}
