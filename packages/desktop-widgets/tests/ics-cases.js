@@ -444,7 +444,7 @@ section("13b. groupByDay dots every day an occurrence COVERS");
 {
   // A three-day all-day event: DTEND is exclusive, so 25/26/27 light up and 28 does not.
   const trip = Ics.groupByDay(parseN(["UID:span-1", "DTSTART;VALUE=DATE:20260925",
-    "DTEND;VALUE=DATE:20260928", "SUMMARY:Viaje"]), at(2026, 9, 1, 0, 0), at(2026, 10, 1, 0, 0));
+    "DTEND;VALUE=DATE:20260928", "SUMMARY:Trip"]), at(2026, 9, 1, 0, 0), at(2026, 10, 1, 0, 0));
   check(same(Object.keys(trip).sort(), ["2026-09-25", "2026-09-26", "2026-09-27"]),
     "a 25->28 all-day event dots the 25th, 26th and 27th and not the 28th: " + Object.keys(trip).sort().join(" "));
   check(trip["2026-09-26"][0].startMs === at(2026, 9, 25, 0, 0),
@@ -452,24 +452,24 @@ section("13b. groupByDay dots every day an occurrence COVERS");
 
   // An event that crosses local midnight dots both nights.
   const night = Ics.groupByDay(parseN(["UID:span-2", "DTSTART:20260920T230000",
-    "DTEND:20260921T010000", "SUMMARY:Vuelo"]), at(2026, 9, 1, 0, 0), at(2026, 10, 1, 0, 0));
+    "DTEND:20260921T010000", "SUMMARY:Flight"]), at(2026, 9, 1, 0, 0), at(2026, 10, 1, 0, 0));
   check(same(Object.keys(night).sort(), ["2026-09-20", "2026-09-21"]),
     "a 23:00->01:00 event dots both days: " + Object.keys(night).sort().join(" "));
 
   // A point-in-time event dots exactly one day.
-  const point = Ics.groupByDay(parseN(["UID:span-3", "DTSTART:20260920T230000", "SUMMARY:Punto"]),
+  const point = Ics.groupByDay(parseN(["UID:span-3", "DTSTART:20260920T230000", "SUMMARY:Point"]),
     at(2026, 9, 1, 0, 0), at(2026, 10, 1, 0, 0));
   check(same(Object.keys(point), ["2026-09-20"]), "a zero-length event dots one day only");
 
   // An event already running when the window opens still dots the days inside it.
   const running = Ics.groupByDay(parseN(["UID:span-4", "DTSTART;VALUE=DATE:20260920",
-    "DTEND;VALUE=DATE:20260925", "SUMMARY:En curso"]), at(2026, 9, 22, 0, 0), at(2026, 9, 30, 0, 0));
+    "DTEND;VALUE=DATE:20260925", "SUMMARY:Running"]), at(2026, 9, 22, 0, 0), at(2026, 9, 30, 0, 0));
   check(same(Object.keys(running).sort(), ["2026-09-22", "2026-09-23", "2026-09-24"]),
     "a trip already under way dots only the days inside the window: " + Object.keys(running).sort().join(" "));
 
   // A multi-day event never leaves the window: nothing outside [from, to] is bucketed.
   const clipped = Ics.groupByDay(parseN(["UID:span-5", "DTSTART;VALUE=DATE:20260910",
-    "DTEND;VALUE=DATE:20261005", "SUMMARY:Largo"]), at(2026, 9, 15, 0, 0), at(2026, 9, 17, 0, 0));
+    "DTEND;VALUE=DATE:20261005", "SUMMARY:Long"]), at(2026, 9, 15, 0, 0), at(2026, 9, 17, 0, 0));
   check(same(Object.keys(clipped).sort(), ["2026-09-15", "2026-09-16", "2026-09-17"]),
     "a 25-day event is clipped to the window it is asked about: " + Object.keys(clipped).sort().join(" "));
 }

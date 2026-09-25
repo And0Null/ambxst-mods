@@ -30,8 +30,8 @@ OUTDIR = Path(os.path.expanduser("~/.local/state/ambxst/day-detail-preview"))
 
 SOURCES = [
     ("Personal", "cyan", FIXTURES / "calendar-sample.ics"),
-    ("Trabajo", "green", FIXTURES / "calendar-work.ics"),
-    ("Familia", "magenta", FIXTURES / "calendar-family.ics"),
+    ("Work", "green", FIXTURES / "calendar-work.ics"),
+    ("Family", "magenta", FIXTURES / "calendar-family.ics"),
 ]
 
 # Strict where it matters: the two states the feature is about pin the exact count. The
