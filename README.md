@@ -150,6 +150,18 @@ ambxst mods install https://github.com/And0Null/ambxst-mods/tree/main/packages/d
 ambxst mods enable and0null.desktop-widgets
 ```
 
+### Screenshots
+
+All four widgets, in two of their three content families — the large cards are `full`, the
+row below them is `compact` (the calendar's compact is the week strip, not a squeezed month):
+
+![Desktop widgets, in their families](screenshots/desktop-widgets-families.png)
+
+A tap on a day opens it, on a surface of its own: the time each event runs, its title,
+where it is, and the colour and name of the calendar it comes from:
+
+![A day's detail](screenshots/desktop-widgets-day-detail.png)
+
 ### Widget types
 
 - `clock` — big time, long date, year.
