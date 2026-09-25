@@ -5,7 +5,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import qs.modules.services
-import "../widgets/nearby/NearbyModel.js" as Model
+import "../widgets/lanshare/LanShareModel.js" as Model
 
 // LAN peer presence and transfer for and0null.lan-share (LocalSend subset).
 // Owns the vendored helper Process plus the transfer state machine. The bar
@@ -25,9 +25,9 @@ Singleton {
     readonly property string minHelperVersion: "1.1.2"
 
     // Helper resolved next to the composed generation tree (overlay target
-    // modules/widgets/nearby/bin/narciss-lan-share-helper). The manifest ships
+    // modules/widgets/lanshare/bin/lan-share-helper). The manifest ships
     // the binary with the executable bit; composition preserves it via git.
-    readonly property string helperPath: String(Qt.resolvedUrl("../widgets/nearby/bin/narciss-lan-share-helper")).replace(/^file:\/\//, "")
+    readonly property string helperPath: String(Qt.resolvedUrl("../widgets/lanshare/bin/lan-share-helper")).replace(/^file:\/\//, "")
 
     // Device name announced to peers. The helper takes its LocalSend alias from
     // the HOSTNAME environment variable and has no usable compiled-in
@@ -110,7 +110,7 @@ Singleton {
 
     property var peers: []
     property var selectedPeer: null
-    property string viewState: "nearby"
+    property string viewState: "lanshare"
     property string statusText: "Turned off"
     property string errorText: ""
 
@@ -125,7 +125,7 @@ Singleton {
     property string outgoingTransferId: ""
     property var pendingSendDevice: null
     // Last directory the file picker saw a selection in, persisted via
-    // StateService (`nearby.lastFileDir`, trailing slash). The zenity
+    // StateService (`lanshare.lastFileDir`, trailing slash). The zenity
     // --filename start dir for the next pick; falls back to $HOME.
     property string lastFileDir: ""
     property int transferSequence: 0
@@ -179,8 +179,19 @@ Singleton {
     function _restore() {
         if (StateService.initialized && !root._restored) {
             root._restored = true;
-            root.receiverEnabled = StateService.get("nearby.receiverEnabled", false);
-            root.lastFileDir = String(StateService.get("nearby.lastFileDir", ""));
+            // One-time key migration from the pre-rename scheme (`nearby.*`), so
+            // an updated install keeps its receiver state and picker directory
+            // instead of resetting to the defaults.
+            if (StateService.get("lanshare.receiverEnabled", null) === null) {
+                var legacyOn = StateService.get("nearby.receiverEnabled", null);
+                if (legacyOn !== null)
+                    StateService.set("lanshare.receiverEnabled", legacyOn === true);
+                var legacyDir = StateService.get("nearby.lastFileDir", null);
+                if (legacyDir !== null)
+                    StateService.set("lanshare.lastFileDir", String(legacyDir));
+            }
+            root.receiverEnabled = StateService.get("lanshare.receiverEnabled", false);
+            root.lastFileDir = String(StateService.get("lanshare.lastFileDir", ""));
             if (root.receiverEnabled)
                 root.statusText = "Starting receiver…";
         }
@@ -212,7 +223,7 @@ Singleton {
         if (on) {
             backendRestart.attempts = 0;
             root.receiverEnabled = true;
-            StateService.set("nearby.receiverEnabled", true);
+            StateService.set("lanshare.receiverEnabled", true);
             root.versionMismatch = false;
             root.helperMissing = false;
             root.errorText = "";
@@ -234,7 +245,7 @@ Singleton {
         rescanStarter.stop();
         root.shutdownPending = false;
         root.receiverEnabled = false;
-        StateService.set("nearby.receiverEnabled", false);
+        StateService.set("lanshare.receiverEnabled", false);
         root.backendReady = false;
         root.discoveryActive = false;
         root.peers = [];
@@ -247,7 +258,7 @@ Singleton {
         root.activeIncomingSession = "";
         root.pendingSendDevice = null;
         root.outgoingTransferId = "";
-        root.viewState = "nearby";
+        root.viewState = "lanshare";
         root.statusText = "Turned off";
         root.errorText = "";
     }
@@ -255,7 +266,7 @@ Singleton {
     function startDiscovery() {
         root.discoveryActive = true;
         root.errorText = "";
-        root.statusText = root.peers.length ? "Ready" : "Looking nearby…";
+        root.statusText = root.peers.length ? "Ready" : "Scanning the LAN…";
         root.send({ command: "discovery_start" });
     }
 
@@ -307,7 +318,7 @@ Singleton {
             return;
         // Opening starts one finite scan round (visible scanning ~12s,
         // then a stable Ready/N-peers state), never a continuous discovery.
-        if (root.viewState === "nearby" && root.receiverEnabled && root.backendReady)
+        if (root.viewState === "lanshare" && root.receiverEnabled && root.backendReady)
             root.rescan();
     }
 
@@ -329,7 +340,7 @@ Singleton {
         root.scanPending = false;
         root.sightedInEpoch = {};
         if (root.viewState === "target")
-            root.viewState = "nearby";
+            root.viewState = "lanshare";
         if (root.receiverEnabled && root.backendReady)
             root.statusText = "Ready to receive";
     }
@@ -353,7 +364,7 @@ Singleton {
     }
 
     function clearTarget() {
-        root.viewState = "nearby";
+        root.viewState = "lanshare";
         root.selectedPeer = null;
     }
 
@@ -369,7 +380,7 @@ Singleton {
         }
         if (!device) {
             root.viewState = "error";
-            root.reportFailure("Peer unavailable", "That peer is no longer nearby.");
+            root.reportFailure("Peer unavailable", "That peer is no longer in range.");
             return;
         }
         if (!backend.running || clipboardReader.running || filePicker.running)
@@ -420,7 +431,7 @@ Singleton {
         if (dir === "")
             return;
         root.lastFileDir = dir + "/";
-        StateService.set("nearby.lastFileDir", root.lastFileDir);
+        StateService.set("lanshare.lastFileDir", root.lastFileDir);
     }
 
     // Builds pending {kind:"files"} via Model.sendFilesCommand and sends it
@@ -432,7 +443,7 @@ Singleton {
     function sendFilesTo(device, paths) {
         if (!device || !device.fingerprint || !device.alias) {
             root.viewState = "error";
-            root.reportFailure("Peer unavailable", "That peer is no longer nearby.");
+            root.reportFailure("Peer unavailable", "That peer is no longer in range.");
             return;
         }
         if (!backend.running)
@@ -476,7 +487,7 @@ Singleton {
             root.viewState = "text";
             root.statusText = "Text received";
         } else {
-            root.viewState = "nearby";
+            root.viewState = "lanshare";
             root.statusText = "Declined";
         }
     }
@@ -549,12 +560,12 @@ Singleton {
     function finishText() {
         root.incomingText = "";
         root.incomingTextPending = false;
-        root.viewState = "nearby";
+        root.viewState = "lanshare";
         root.startDiscovery();
     }
 
     function finishTerminal() {
-        root.viewState = "nearby";
+        root.viewState = "lanshare";
         root.startDiscovery();
     }
 
@@ -628,7 +639,7 @@ Singleton {
             backendRestart.attempts = 0;
             root.statusText = "Ready to receive";
             root.errorText = "";
-            if (root.anyViewOpen && root.viewState === "nearby")
+            if (root.anyViewOpen && root.viewState === "lanshare")
                 root.startDiscovery();
         } else if (event.event === "peer_snapshot") {
             var snapEpoch = root.scanEpoch;
@@ -653,11 +664,11 @@ Singleton {
                     }
                     root.peers = Model.snapshotDevices(fresh, Date.now());
                     root.scanPending = false;
-                    root.statusText = root.peers.length ? "Ready" : "Looking nearby…";
+                    root.statusText = root.peers.length ? "Ready" : "Scanning the LAN…";
                     return;
                 }
                 root.peers = Model.snapshotDevices(snapDevices, Date.now());
-                root.statusText = root.peers.length ? "Ready" : "Looking nearby…";
+                root.statusText = root.peers.length ? "Ready" : "Scanning the LAN…";
             });
         } else if (event.event === "device") {
             var devEpoch = root.scanEpoch;
@@ -677,7 +688,7 @@ Singleton {
                     return;
                 }
                 root.peers = Model.upsertDevice(root.peers, dev, Date.now());
-                root.statusText = root.peers.length ? "Ready" : "Looking nearby…";
+                root.statusText = root.peers.length ? "Ready" : "Scanning the LAN…";
             });
         } else if (event.event === "discovery_started") {
             root.discoveryActive = true;
@@ -1034,7 +1045,7 @@ Singleton {
                 root.scanPending = false;
                 root.scanEpoch++;
                 root.sightedInEpoch = {};
-                root.statusText = root.peers.length ? "Ready" : "No devices nearby";
+                root.statusText = root.peers.length ? "Ready" : "No devices in range";
             }
         }
     }
@@ -1075,11 +1086,11 @@ Singleton {
                     if (!kept) {
                         root.selectedPeer = null;
                         if (root.viewState === "target")
-                            root.viewState = "nearby";
+                            root.viewState = "lanshare";
                     }
                 }
-                if (root.viewState === "nearby" || root.viewState === "target")
-                    root.statusText = pruned.length ? "Ready" : "Looking nearby…";
+                if (root.viewState === "lanshare" || root.viewState === "target")
+                    root.statusText = pruned.length ? "Ready" : "Scanning the LAN…";
             });
         }
     }

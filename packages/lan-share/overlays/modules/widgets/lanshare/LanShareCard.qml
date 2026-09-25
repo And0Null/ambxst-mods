@@ -5,10 +5,10 @@ import qs.modules.services
 import qs.modules.components
 import qs.modules.theme
 
-// Nearby presence card (inside BarPopup): hero + receiver toggle + peer list
+// LANShare presence card (inside BarPopup): hero + receiver toggle + peer list
 // + rescan + file/clipboard send + incoming accept/decline. Outgoing file
 // send (v1.1) goes through the service-owned zenity picker
-// (NearbyService.selectFilesTo); the card owns no picker Process.
+// (LanShareService.selectFilesTo); the card owns no picker Process.
 // No PIN, no updater UI.
 ColumnLayout {
     id: root
@@ -21,7 +21,7 @@ ColumnLayout {
     readonly property color softFg: Colors.overSurfaceVariant
     readonly property color strongFg: Colors.overSurface
 
-    component NearbyAction: Button {
+    component LanShareAction: Button {
         id: actionBtn
 
         property string label: ""
@@ -77,7 +77,7 @@ ColumnLayout {
                     text: Icons.globe
                     font.family: Icons.font
                     font.pixelSize: 30
-                    color: (NearbyService.receiverEnabled && NearbyService.backendReady) ? Styling.srItem("overprimary") : Colors.overSurfaceVariant
+                    color: (LanShareService.receiverEnabled && LanShareService.backendReady) ? Styling.srItem("overprimary") : Colors.overSurfaceVariant
                     Layout.alignment: Qt.AlignVCenter
                 }
 
@@ -93,26 +93,26 @@ ColumnLayout {
                     }
 
                     Text {
-                        text: NearbyService.statusMeta
+                        text: LanShareService.statusMeta
                         color: root.softFg
                         font.pixelSize: 12
                     }
                 }
 
-                NearbyAction {
-                    label: NearbyService.receiverEnabled ? "ON" : "OFF"
-                    primary: NearbyService.receiverEnabled
+                LanShareAction {
+                    label: LanShareService.receiverEnabled ? "ON" : "OFF"
+                    primary: LanShareService.receiverEnabled
                     Layout.fillWidth: false
                     Layout.preferredWidth: 64
-                    onClicked: NearbyService.toggleReceiver()
+                    onClicked: LanShareService.toggleReceiver()
                 }
             }
 
             // Error line
             Text {
-                visible: NearbyService.errorText !== ""
+                visible: LanShareService.errorText !== ""
                 Layout.fillWidth: true
-                text: NearbyService.errorText
+                text: LanShareService.errorText
                 color: root.softFg
                 font.pixelSize: 11
                 wrapMode: Text.WordWrap
@@ -120,7 +120,7 @@ ColumnLayout {
 
             // Devices
             ColumnLayout {
-                visible: NearbyService.viewState === "nearby"
+                visible: LanShareService.viewState === "lanshare"
                 Layout.fillWidth: true
                 spacing: 6
 
@@ -132,11 +132,11 @@ ColumnLayout {
                 }
 
                 Text {
-                    visible: NearbyService.peers.length === 0
+                    visible: LanShareService.peers.length === 0
                     Layout.fillWidth: true
-                    text: !NearbyService.receiverEnabled
+                    text: !LanShareService.receiverEnabled
                         ? "LAN Share is turned off"
-                        : (!NearbyService.backendReady ? NearbyService.statusText : (NearbyService.scanPending ? NearbyService.statusText : (NearbyService.discoveryActive ? "Finding devices…" : "No devices nearby")))
+                        : (!LanShareService.backendReady ? LanShareService.statusText : (LanShareService.scanPending ? LanShareService.statusText : (LanShareService.discoveryActive ? "Finding devices…" : "No devices in range")))
                     color: root.softFg
                     font.pixelSize: 13
                     wrapMode: Text.WordWrap
@@ -145,7 +145,7 @@ ColumnLayout {
                 }
 
                 Repeater {
-                    model: NearbyService.peers
+                    model: LanShareService.peers
 
                     delegate: MouseArea {
                         required property var modelData
@@ -155,7 +155,7 @@ ColumnLayout {
                         Layout.preferredHeight: 40
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: NearbyService.choosePeer(index)
+                        onClicked: LanShareService.choosePeer(index)
 
                         StyledRect {
                             anchors.fill: parent
@@ -187,16 +187,16 @@ ColumnLayout {
                     }
                 }
 
-                NearbyAction {
-                    visible: NearbyService.receiverEnabled && NearbyService.backendReady
-                    label: NearbyService.scanPending ? "Scanning…" : "Rescan"
-                    onClicked: NearbyService.rescan()
+                LanShareAction {
+                    visible: LanShareService.receiverEnabled && LanShareService.backendReady
+                    label: LanShareService.scanPending ? "Scanning…" : "Rescan"
+                    onClicked: LanShareService.rescan()
                 }
             }
 
             // Send target
             ColumnLayout {
-                visible: NearbyService.viewState === "target" && NearbyService.selectedPeer
+                visible: LanShareService.viewState === "target" && LanShareService.selectedPeer
                 Layout.fillWidth: true
                 spacing: 6
 
@@ -209,39 +209,39 @@ ColumnLayout {
 
                 Text {
                     Layout.fillWidth: true
-                    text: "To " + (NearbyService.selectedPeer ? NearbyService.selectedPeer.alias : "")
+                    text: "To " + (LanShareService.selectedPeer ? LanShareService.selectedPeer.alias : "")
                     color: root.softFg
                     font.pixelSize: 13
                     elide: Text.ElideRight
                 }
 
-                NearbyAction {
+                LanShareAction {
                     label: "Send files"
                     primary: true
-                    onClicked: NearbyService.selectFilesTo()
+                    onClicked: LanShareService.selectFilesTo()
                 }
 
-                NearbyAction {
+                LanShareAction {
                     label: "Send clipboard"
                     primary: true
-                    onClicked: NearbyService.sendTextTo(NearbyService.selectedPeer ? NearbyService.selectedPeer.fingerprint : "")
+                    onClicked: LanShareService.sendTextTo(LanShareService.selectedPeer ? LanShareService.selectedPeer.fingerprint : "")
                 }
 
-                NearbyAction {
+                LanShareAction {
                     label: "Back"
-                    onClicked: NearbyService.clearTarget()
+                    onClicked: LanShareService.clearTarget()
                 }
             }
 
             // Incoming prompt
             ColumnLayout {
-                visible: NearbyService.viewState === "incoming" && NearbyService.incoming
+                visible: LanShareService.viewState === "incoming" && LanShareService.incoming
                 Layout.fillWidth: true
                 spacing: 8
 
                 Text {
                     Layout.fillWidth: true
-                    text: NearbyService.incoming ? NearbyService.incoming.sender + " wants to send" : ""
+                    text: LanShareService.incoming ? LanShareService.incoming.sender + " wants to send" : ""
                     color: root.strongFg
                     font.pixelSize: 15
                     font.bold: true
@@ -250,16 +250,16 @@ ColumnLayout {
 
                 Text {
                     Layout.fillWidth: true
-                    text: NearbyService.incoming ? NearbyService.incomingSummary(NearbyService.incoming.files) : ""
+                    text: LanShareService.incoming ? LanShareService.incomingSummary(LanShareService.incoming.files) : ""
                     color: root.softFg
                     font.pixelSize: 12
                     elide: Text.ElideRight
                 }
 
                 Text {
-                    visible: NearbyService.incomingQueue.length > 1
+                    visible: LanShareService.incomingQueue.length > 1
                     Layout.fillWidth: true
-                    text: (NearbyService.incomingQueue.length - 1) + (NearbyService.incomingQueue.length === 2 ? " more request" : " more requests")
+                    text: (LanShareService.incomingQueue.length - 1) + (LanShareService.incomingQueue.length === 2 ? " more request" : " more requests")
                     color: root.softFg
                     font.pixelSize: 12
                 }
@@ -268,29 +268,29 @@ ColumnLayout {
                     Layout.fillWidth: true
                     spacing: 8
 
-                    NearbyAction {
+                    LanShareAction {
                         label: "Decline"
                         Layout.fillWidth: true
-                        onClicked: NearbyService.declineIncoming()
+                        onClicked: LanShareService.declineIncoming()
                     }
 
-                    NearbyAction {
+                    LanShareAction {
                         label: "Accept"
                         primary: true
                         Layout.fillWidth: true
-                        onClicked: NearbyService.acceptIncoming()
+                        onClicked: LanShareService.acceptIncoming()
                     }
                 }
             }
 
             // Transfer progress
             ColumnLayout {
-                visible: NearbyService.viewState === "sending" || NearbyService.viewState === "receiving"
+                visible: LanShareService.viewState === "sending" || LanShareService.viewState === "receiving"
                 Layout.fillWidth: true
                 spacing: 8
 
                 Text {
-                    text: NearbyService.viewState === "sending" ? "SENDING" : "RECEIVING"
+                    text: LanShareService.viewState === "sending" ? "SENDING" : "RECEIVING"
                     color: root.strongFg
                     font.pixelSize: 12
                     font.bold: true
@@ -298,7 +298,7 @@ ColumnLayout {
 
                 Text {
                     Layout.fillWidth: true
-                    text: NearbyService.transferName
+                    text: LanShareService.transferName
                     color: root.strongFg
                     font.pixelSize: 14
                     font.bold: true
@@ -312,7 +312,7 @@ ColumnLayout {
                     color: Colors.overSurfaceVariant
 
                     Rectangle {
-                        width: parent.width * Math.max(0, Math.min(1, NearbyService.progress))
+                        width: parent.width * Math.max(0, Math.min(1, LanShareService.progress))
                         height: parent.height
                         radius: height / 2
                         color: Styling.srItem("overprimary")
@@ -320,21 +320,21 @@ ColumnLayout {
                 }
 
                 Text {
-                    text: Math.round(NearbyService.progress * 100) + "% · " + (NearbyService.viewState === "sending" ? "to " : "from ") + NearbyService.transferPeer
+                    text: Math.round(LanShareService.progress * 100) + "% · " + (LanShareService.viewState === "sending" ? "to " : "from ") + LanShareService.transferPeer
                     color: root.softFg
                     font.pixelSize: 12
                 }
 
-                NearbyAction {
-                    visible: NearbyService.viewState === "sending"
+                LanShareAction {
+                    visible: LanShareService.viewState === "sending"
                     label: "Cancel"
-                    onClicked: NearbyService.cancelOutgoing()
+                    onClicked: LanShareService.cancelOutgoing()
                 }
             }
 
             // Received text
             ColumnLayout {
-                visible: NearbyService.viewState === "text"
+                visible: LanShareService.viewState === "text"
                 Layout.fillWidth: true
                 spacing: 8
 
@@ -347,7 +347,7 @@ ColumnLayout {
 
                 Text {
                     Layout.fillWidth: true
-                    text: NearbyService.incomingText
+                    text: LanShareService.incomingText
                     color: root.strongFg
                     font.pixelSize: 13
                     wrapMode: Text.WordWrap
@@ -359,29 +359,29 @@ ColumnLayout {
                     Layout.fillWidth: true
                     spacing: 8
 
-                    NearbyAction {
+                    LanShareAction {
                         label: "Copy"
                         Layout.fillWidth: true
-                        onClicked: NearbyService.copyReceivedText()
+                        onClicked: LanShareService.copyReceivedText()
                     }
 
-                    NearbyAction {
+                    LanShareAction {
                         label: "Done"
                         Layout.fillWidth: true
-                        onClicked: NearbyService.finishText()
+                        onClicked: LanShareService.finishText()
                     }
                 }
             }
 
             // Terminal state
             ColumnLayout {
-                visible: NearbyService.viewState === "success" || NearbyService.viewState === "error"
+                visible: LanShareService.viewState === "success" || LanShareService.viewState === "error"
                 Layout.fillWidth: true
                 spacing: 8
 
                 Text {
                     Layout.fillWidth: true
-                    text: NearbyService.viewState === "success" ? NearbyService.statusText : NearbyService.errorText
+                    text: LanShareService.viewState === "success" ? LanShareService.statusText : LanShareService.errorText
                     color: root.strongFg
                     font.pixelSize: 14
                     font.bold: true
@@ -389,17 +389,17 @@ ColumnLayout {
                 }
 
                 Text {
-                    visible: NearbyService.viewState === "success" && NearbyService.transferPeer !== ""
+                    visible: LanShareService.viewState === "success" && LanShareService.transferPeer !== ""
                     Layout.fillWidth: true
-                    text: (NearbyService.statusText === "Sent" ? "to " : "from ") + NearbyService.transferPeer
+                    text: (LanShareService.statusText === "Sent" ? "to " : "from ") + LanShareService.transferPeer
                     color: root.softFg
                     font.pixelSize: 12
                     wrapMode: Text.WordWrap
                 }
 
-                NearbyAction {
+                LanShareAction {
                     label: "Done"
-                    onClicked: NearbyService.finishTerminal()
+                    onClicked: LanShareService.finishTerminal()
                 }
             }
         }
