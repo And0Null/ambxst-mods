@@ -3,7 +3,7 @@
     "manifestVersion": 1,
     "id": "and0null.desktop-widgets",
     "name": "Desktop widgets",
-    "version": "1.15.0",
+    "version": "1.16.0",
     "description": "Widgets on the desktop, not in the dashboard: a clock, a calendar (with an agenda fed by your own iCal/ICS feeds), a weather card and a system card (CPU/temp/RAM, and GPU when detected) drawn on an input-transparent Bottom layer per output, so they sit under your windows like desktop icons and step aside for fullscreen. Every card asks for one of three content families (compact, full, detailed) and each family carries the card size it needs, so picking one resizes the card in either direction - the minimal tier shrinks it, the calendar's smallest being the week row instead of a squeezed month - while a card taller than its family's normal size spends the height on bigger content instead of empty glass. A management menu (bar button or `ambxst run desktop-widgets`) adds widgets, hides or removes them, picks each widget's content family (a segmented switch per row, group children included), sets the card opacity and toggles the drag-to-move edit mode, persisting every change. Layout lives in ~/.config/ambxst/desktop-widgets.json: each card stores an anchor (which screen edge it sticks to per axis, or the centre) plus its distance to that edge in pixels, so gaps and margins are identical on every resolution, on one monitor or several. A design picker applies a whole arrangement in one click (Split, Rail, Studio, Row, Cluster, Minimal, Center), each shown as a miniature drawn from the same placement arithmetic, and every design is checked to fit the smallest screen and clear the bar and dock.",
     "license": "MIT",
     "author": "And0Null",
