@@ -59,11 +59,31 @@ Singleton {
     // calendar in it with whatever the menu holds, so every edit stops until it is fixed.
     property bool fileBroken: false
 
-    // Colors are NAMES from the theme's matugen-generated palette, never a hardcoded
-    // hex: the palette moves when the wallpaper does, and a source that picked `cyan`
-    // keeps matching the desktop afterwards. A source with no color gets one in order.
+    // Colors are still NAMES (the file stores a name, not a hex, and the menu cycles
+    // names), but the name now resolves to a FIXED NEON instead of the theme's color.
+    // Measured on the real palette: matugen hands this desktop `magenta #e4b7f3`
+    // (L=83%) and `green #95d5a7` (S=43%) — pastels. A 3px dot at L=83% on a dark card
+    // is a smudge, and a day with events is exactly what the dot is FOR, so legibility
+    // beat matching the wallpaper here by the user's call. A source keeps its name, so
+    // this is one map: the dots, the agenda tick and the menu swatch can never disagree.
+    // The theme's own colors are still there for anything that wants to blend
+    // (`themeColor`), they are just not what a dot is drawn with.
     readonly property var paletteNames: ["primary", "secondary", "tertiary", "cyan", "green", "magenta", "yellow", "blue", "red"]
-    readonly property var palette: ({
+    readonly property var neon: ({
+        "primary": "#ff2d6f",
+        "secondary": "#00e5ff",
+        "tertiary": "#b388ff",
+        "cyan": "#00ffd5",
+        "green": "#39ff14",
+        "magenta": "#ff00e5",
+        "yellow": "#ffe600",
+        "blue": "#2b6bff",
+        "red": "#ff3b30",
+        "error": "#ff3b30"
+    })
+    // What the name means in the theme, for a context that wants to blend instead of
+    // shout (nothing on screen today; kept so the two maps can be compared).
+    readonly property var themeColor: ({
         "primary": Colors.primary,
         "secondary": Colors.secondary,
         "tertiary": Colors.tertiary,
@@ -75,6 +95,8 @@ Singleton {
         "red": Colors.red,
         "error": Colors.error
     })
+    // The map everything draws with: a dot, a tick, a swatch.
+    readonly property var palette: root.neon
 
     function colorNameFor(name, index) {
         var key = String(name || "").toLowerCase();
