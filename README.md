@@ -136,7 +136,7 @@ clear message until you install it.
 
 ---
 
-## desktop-widgets — `and0null.desktop-widgets` (v1.15.0)
+## desktop-widgets — `and0null.desktop-widgets` (v1.16.1)
 
 Widgets on your desktop, not in the dashboard: a clock, a month calendar, a weather
 card and a system card (CPU/temp/RAM, and GPU when detected) floating in liquid-glass
@@ -511,14 +511,31 @@ pushed the calendar 71px off its right edge.
 
 ## Notes
 
-- **Tested on base commit** `af9f8ad4` (listed in the manifest). Ambxst updates can move
-  the patched lines.
+- **Tested on base releases** `1.3.6`, `1.3.7` and `1.3.8` (all four commits listed in the
+  manifest). Ambxst updates can move the patched lines. The manifest's range starts at
+  **`1.3.6`** because `calendar.patch` rewrites the calendar's title row, which Ambxst's i18n
+  commit `30a83eaf` changed in that release: on `1.3.0`–`1.3.5` the three-way merge is a real
+  content conflict the shell refuses to guess, so the range says so up front instead of the
+  build failing with a patch error.
 - **Patches.** This mod patches `modules/services/Visibilities.qml`,
-  `modules/services/GlobalShortcuts.qml` and `shell.qml`. Two mods inserting at
-  *different* anchors compose; two hunks that share context lines do not, even when both
-  only insert. That is why the Visibilities module name is registered at runtime by the
-  service instead of being appended to `moduleNames` with a patch — pkg-launcher already
-  inserts there.
+  `modules/services/GlobalShortcuts.qml`, `shell.qml`, `modules/bar/BarContent.qml` and the
+  dashboard's calendar panel. Two mods inserting at *different* anchors compose; two hunks that
+  share context lines do not, even when both only insert. That is why the Visibilities module name
+  is registered at runtime by the service instead of being appended to `moduleNames` with a patch
+  — pkg-launcher already inserts there.
+- **Every patch records its pre-image** in the `index` line (`index <pre>..<post>`), which is what
+  makes the shell's `git apply --3way` possible when another mod has already edited the same file.
+  Without it, a mod next to `community.audio-device-switcher` (or `community.calendar-integration`,
+  or lan-share's bar button) fails the whole build with *repository lacks the necessary blob to
+  perform 3-way merge*. Dropping the `index` line from `barcontent.patch` brings that whole
+  failure straight back.
+- **The shell patch carries this mod's own surfaces only** — the import and the three `Variants`
+  blocks. It also used to carry other mods' work: the wallpaper picker and package launcher blocks,
+  and the bar/frame/dock reservation rewrite, which reads `unifiedPanel.barZoneProgress`, a
+  property no Ambxst release has (only the mod that adds it does). Installed on its own that left
+  the shell naming components and properties that were not there; installed beside those mods it
+  fought them for the same lines. The widgets need none of it — `WidgetLayer` reads fullscreen per
+  output itself.
 
 ## system-updates — `and0null.system-updates` (v1.2.0)
 

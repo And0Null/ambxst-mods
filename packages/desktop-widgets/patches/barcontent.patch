@@ -1,4 +1,5 @@
 diff --git i/modules/bar/BarContent.qml w/modules/bar/BarContent.qml
+index 9d43848a..4cd12e80 100644
 --- i/modules/bar/BarContent.qml
 +++ w/modules/bar/BarContent.qml
 @@ -1016,6 +1016,13 @@ Item {

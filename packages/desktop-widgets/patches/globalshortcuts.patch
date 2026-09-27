@@ -1,5 +1,5 @@
 diff --git i/modules/services/GlobalShortcuts.qml w/modules/services/GlobalShortcuts.qml
-index 2fdbd9f5..3cfb49b5 100644
+index b1aa3be4..3cfb49b5 100644
 --- i/modules/services/GlobalShortcuts.qml
 +++ w/modules/services/GlobalShortcuts.qml
 @@ -60,2 +60,3 @@ QtObject {
