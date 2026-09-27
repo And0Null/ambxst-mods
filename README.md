@@ -474,6 +474,7 @@ itself proves nothing:
 | the content-family selector: the tiers the menu offers are the ones the widget QMLs draw, the switches sit on the file's families (group children included, unknown families offered nothing), a pick on an option writes through the control's own signal, an out-of-range index writes nothing, the size each family is applied at is the one the widget's header declares (both tables read back out of the sources) and clears the widget's own gate, a pick **shrinks** as well as grows and doing it twice does not move the card twice, and the calendar's minimal tier is a week: the panel, asked at that card's inner size, draws **one** row of days that starts on a Monday and holds today, with its letters and without the title | `python3 tests/widget-family-menu.py` |
 | a day on a tap: three fixtures through the same panel and the same surface the shell ships — a day holding five events from three calendars (two of them overlapping, one duplicate merged out by UID), a day with nothing that says so — the ring following the service's day in the **month grid and in the week strip**, the tap's state machine (a second tap closes, and clearing empties it), and the day's label and times read as text; the cell→date formula is asked of the shipped panel and compared with the real date, and a copy of the panel with the cells off by one day plus a service with the toggle removed fails it | `python3 tests/calendar-day-detail.py` |
 | the day detail photographed on a headless output, in its own `XDG_CONFIG_HOME`: a day with five events from three calendars, a day that says it has none, and the ring on a cell that is not today — on the output the probe really drew on, with the surface confirmed in Hyprland's layer list | `python3 tests/day-detail-preview.py` |
+| the mod's patches, applied through the shell's own algorithm (`--check`, then `--3way`, then keeping both sides of an added-vs-added conflict) on every Ambxst release inside the declared range — on its own, behind a foreign bar button block, and behind lan-share's real bar patch — and the shell left carrying nothing this mod does not ship | `../extras/mod-composition-check.sh .` |
 
 `calendar-menu-writes.py` runs each scenario against a throwaway `XDG_CONFIG_HOME`, so it
 cannot touch the real `~/.config/ambxst`, and it starts a probe that instantiates the
@@ -706,6 +707,28 @@ ships (`wl-paste`/`wl-copy`) and `notify-send`. Declared in the manifest's
   directory migrate once from the old `nearby.*` StateService keys, so an updated
   install keeps its receiver toggle and last-used directory. No API or protocol
   change.
+
+## Checks
+
+```bash
+extras/mod-composition-check.sh                    # every package, every Ambxst release in range
+extras/mod-composition-check.sh packages/lan-share # one package
+```
+
+It replays the shell's own patch application — `git apply --check`, then `git apply --3way`, then
+keeping both sides of an added-vs-added conflict — on a throwaway generation per Ambxst release
+inside each mod's declared range (plus the base shell's tip, which is what an install actually
+builds), on its own and with another mod's bar button already in the file. It fails when:
+
+- a mod does not build on a release **its own manifest claims** (the range is the contract; narrow
+  it or fix the patch);
+- a patch records no pre-image blob, or one the base shell does not have, so a three-way merge can
+  never run and the mod breaks as soon as another mod edits the same file;
+- a patch leaves conflict markers behind;
+- the built `shell.qml` imports a module the build does not have, or reads a property no Ambxst
+  release defines — the signature of another mod's work that came along inside the patch.
+
+The base shell comes from `~/.local/share/ambxst/shell_repo`, or `$AMBXST_SRC`.
 
 ## License
 
