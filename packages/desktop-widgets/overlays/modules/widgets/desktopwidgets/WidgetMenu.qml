@@ -547,12 +547,12 @@ PanelWindow {
                                 spacing: 6
 
                                 Repeater {
-                                    model: ["clock", "calendar", "weather", "system"]
+                                    model: ["clock", "calendar", "weather", "system", "media"]
 
                                     IconButton {
                                         required property string modelData
 
-                                        icon: modelData === "clock" ? Icons.clock : modelData === "calendar" ? Icons.notepad : modelData === "weather" ? Icons.sunDim : Icons.thermometer
+                                        icon: modelData === "clock" ? Icons.clock : modelData === "calendar" ? Icons.notepad : modelData === "weather" ? Icons.sunDim : modelData === "media" ? Icons.note : Icons.thermometer
                                         label: root.widgetName(modelData)
                                         onActivated: DesktopWidgetsService.addWidget(modelData, root.screen.width, root.screen.height)
                                     }

@@ -71,6 +71,7 @@ const FAMILIES = {
   clock: ["compact", "full", "detailed"],
   weather: ["compact", "full", "detailed"], system: ["compact", "full", "detailed"],
   calendar: ["full"], group: ["full"],
+  media: ["full"],
 };
 
 let fails = 0;

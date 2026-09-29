@@ -69,9 +69,17 @@ PanelWindow {
     // re-resolve rep.itemAt(i) (Lucid pattern).
     property int rev: 0
 
+    // The mask is built from these items, and a Region holds geometry ONLY (Quickshell's
+    // PendingRegion tracks an item's x/y/width/height, never its visibility), so a card
+    // that is not on screen would still swallow clicks over its own rectangle. Returning
+    // null makes the Region empty, which drops it from the mask. `cell.visible` is read
+    // here so this binding re-evaluates when a card hides or comes back.
     function frameAt(i) {
         var _ = rev;
-        return (i >= 0 && i < rep.count) ? rep.itemAt(i) : null;
+        if (i < 0 || i >= rep.count)
+            return null;
+        var cell = rep.itemAt(i);
+        return (cell && cell.visible) ? cell : null;
     }
 
     // Input mask (Lucid pattern): while a card is being dragged the mask
@@ -155,6 +163,8 @@ PanelWindow {
             return weatherComp;
         if (type === "system")
             return systemComp;
+        if (type === "media")
+            return mediaComp;
         return null;
     }
 
@@ -171,6 +181,11 @@ PanelWindow {
     Component {
         id: weatherComp
         WeatherWidget {}
+    }
+
+    Component {
+        id: mediaComp
+        MediaWidget {}
     }
 
     Component {
@@ -193,6 +208,13 @@ PanelWindow {
             readonly property bool isGroup: entry.type === "group"
             readonly property var kids: (entry.children && entry.children.length) ? entry.children : []
             readonly property bool editable: DesktopWidgetsService.editMode && entry.enabled !== false
+
+            // A widget may declare `cardHidden` — a card with nothing to show, like the
+            // media card with no player on the bus. Optional, exactly like `family`: a
+            // widget that does not declare it keeps its card. A group child cannot hide
+            // its group's card.
+            readonly property bool contentHidden: cell.isGroup ? false
+                : (singleLoader.item !== null && singleLoader.item.cardHidden === true)
 
             // Single source of truth for the position: the persisted entry
             // anchor before a drag, the directly-assigned pixel position
@@ -220,8 +242,10 @@ PanelWindow {
             y: Math.min(Math.max(anchoredY, 0), maxY)
             width: entry.w
             height: entry.h
-            // Hidden entries keep their spot (enabled: false in the layout).
-            visible: entry.enabled !== false
+            // Hidden entries keep their spot (enabled: false in the layout), and a widget
+            // with nothing to show hides the same way — with the mask hole closed by
+            // frameAt() above.
+            visible: entry.enabled !== false && !cell.contentHidden
 
             WidgetFrame {
                 anchors.fill: parent
@@ -229,6 +253,7 @@ PanelWindow {
 
                 // A single widget.
                 Loader {
+                    id: singleLoader
                     anchors.fill: parent
                     visible: !cell.isGroup
                     sourceComponent: root.componentFor(cell.entry.type)
