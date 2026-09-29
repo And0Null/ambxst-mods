@@ -60,6 +60,9 @@ LAYOUT = {
          "w": 360, "h": 360, "family": "full", "enabled": True},
         {"type": "weather", "ax": "right", "ox": 40, "ay": "bottom", "oy": 40,
          "w": 280, "h": 150, "family": "weird-hand-edit", "enabled": True},
+        # Appended LAST on purpose: check_resize and check_week hard-code indices 0/2/3.
+        {"type": "media", "ax": "left", "ox": 360, "ay": "bottom", "oy": 40,
+         "w": 360, "h": 360, "family": "full", "enabled": True},
     ],
 }
 
@@ -337,9 +340,13 @@ def check_map():
             why.append(f"{t} implements {impl[t]} but the menu offers nothing")
         elif sorted(fam[t]) != impl[t]:
             why.append(f"{t}: menu offers {sorted(fam[t])}, the widget draws {impl[t]}")
+    # Every type the menu offers must have a widget QML that draws it. The weaker rule this
+    # replaces (flag only a type offering more than ["full"]) let a type be registered in the
+    # service with nothing behind it: the add row would offer a card whose family pick does
+    # nothing at all.
     for t in fam:
-        if t not in impl and fam[t] != ["full"]:
-            why.append(f"menu offers {fam[t]} for {t}, which has no widget QML")
+        if t not in impl:
+            why.append(f"the menu offers {t} and no widget QML draws it")
     return (not why), why
 
 
@@ -580,10 +587,56 @@ def check_week(d):
     return (not why), why
 
 
+def check_hidden():
+    """A card that is not on screen leaves the input mask, and the media card knows its own rule.
+
+    Three facts, each of which has bitten or would bite silently:
+      * the mask is a union of `Region { item: frameAt(i) }`, and Quickshell's Region tracks an
+        item's geometry but NOT its visibility, so a card that stops being visible keeps its
+        rectangle and swallows every click over it unless frameAt() filters it out;
+      * the layer has to READ `cardHidden` from the loaded widget, or the widget can decide that
+        it has nothing to show and nothing happens;
+      * the widget's hidden rule must not be defeated by its own title fallback: an idle browser
+        tab publishes an `identity` and nothing else (measured: `{"mpris:length": 0}`), so a title
+        that falls back to the identity makes `hasSomethingToShow` permanently true and the card
+        draws empty glass on any desktop with a browser open.
+    """
+    src = (MOD / "overlays/modules/widgets/desktopwidgets/WidgetLayer.qml").read_text()
+    why = []
+    body = re.search(r"function frameAt\(i\)\s*\{(.*?)\n    \}", src, re.S)
+    if not body:
+        why.append("frameAt() could not be found in the layer")
+    elif "visible" not in body.group(1):
+        why.append("frameAt() no longer filters invisible cells: a hidden card keeps its "
+                   "rectangle in the input mask and swallows every click over it")
+    if "item.cardHidden" not in src:
+        why.append("the layer no longer reads `cardHidden` from the loaded widget")
+
+    media = (MOD / "overlays/modules/widgets/desktopwidgets/MediaWidget.qml").read_text()
+    title = re.search(r"readonly property string titleText:(.*?)(?=\n    readonly |\n\n)", media, re.S)
+    if not title:
+        why.append("MediaWidget has no titleText property to judge the hidden rule against")
+    elif "identity" in title.group(1):
+        why.append("MediaWidget's titleText falls back to the player's identity: an idle tab "
+                   "publishes an identity and nothing else, which makes hasSomethingToShow true "
+                   "and the card draws empty glass forever")
+    return (not why), why
+
+
 def service_gate(type_name, family):
-    """The service's own gate numbers, parsed out of the service source."""
+    """The service's own gate numbers, parsed out of the `familyGate` map.
+
+    Scoped to that map on purpose. A type with a SINGLE family writes its naturalCards
+    entry as `type: { family: { w: N, h: M } }`, which is byte for byte the shape of a gate
+    declaration; read against the whole source, the first one-family type to land got a
+    phantom gate demanding a card 32px bigger than its own size.
+    """
     src = (MOD / "overlays/modules/services/DesktopWidgetsService.qml").read_text()
-    m = re.search(type_name + r":\s*\{\s*" + family + r":\s*\{\s*w:\s*(\d+),\s*h:\s*(\d+)\s*\}\s*\}", src)
+    block = re.search(r"familyGate:\s*\(\{(.*?)\n    \}\)", src, re.S)
+    if not block:
+        return None
+    m = re.search(type_name + r":\s*\{\s*" + family + r":\s*\{\s*w:\s*(\d+),\s*h:\s*(\d+)\s*\}\s*\}",
+                  block.group(1))
     return None if not m else (int(m.group(1)), int(m.group(2)))
 
 
@@ -644,7 +697,7 @@ def main():
     ap.add_argument("--list", action="store_true", help="list scenarios and exit")
     args = ap.parse_args()
 
-    scenarios = ["map", "natural", "open", "render", "write", "resize", "week", "gates",
+    scenarios = ["map", "natural", "hidden", "open", "render", "write", "resize", "week", "gates",
                  "click", "bad-index"]
     if args.list:
         print("\n".join(scenarios))
@@ -665,6 +718,8 @@ def main():
             ok, why = check_map()
         elif name == "natural":
             ok, why = check_natural()
+        elif name == "hidden":
+            ok, why = check_hidden()
         else:
             d = run_scenario(name, generation, workdir, args.keep)
             if name == "render":
