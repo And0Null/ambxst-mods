@@ -617,9 +617,52 @@ def check_hidden():
     if not title:
         why.append("MediaWidget has no titleText property to judge the hidden rule against")
     elif "identity" in title.group(1):
-        why.append("MediaWidget's titleText falls back to the player's identity: an idle tab "
-                   "publishes an identity and nothing else, which makes hasSomethingToShow true "
-                   "and the card draws empty glass forever")
+        why.append("MediaWidget's titleText falls back to the player's identity, so the card "
+                   "would print a browser's name in the place where it prints a song title")
+
+    worth = re.search(r"function worthShowing\(p\)\s*\{(.*?)\n    \}", media, re.S)
+    if not worth:
+        why.append("MediaWidget has no worthShowing() to judge the card's own rule against")
+    elif "trackTitle" in worth.group(1):
+        why.append("a bare page title is enough for a player to be worth showing: an idle browser "
+                   "tab publishes its PAGE TITLE as `xesam:title` (measured here: a Helium tab as "
+                   "\"Profile - Kick Streaming\", no artist, no art), so the card would stay on "
+                   "screen, dressed as a song, on a desktop where nothing is playing")
+    return (not why), why
+
+
+def check_chooser():
+    """The card follows a player worth showing, and offers the list only when there is a list.
+
+    The shell's own player list (`FullPlayer.qml`, inside the dashboard) is the reference for
+    the look; what this checks is the part a screenshot cannot: that the card's player is
+    chosen for DISPLAY rather than taken from the controller.
+    """
+    src = MOD / "overlays/modules/widgets/desktopwidgets/MediaWidget.qml"
+    if not src.exists():
+        return False, ["MediaWidget.qml does not exist"]
+    text = src.read_text()
+    why = []
+    if "filteredPlayers.length > 1" not in text:
+        why.append("the card does not gate the chooser on there being more than one player")
+    if "setActivePlayer" not in text:
+        why.append("the card never calls MprisController.setActivePlayer(), so a pick cannot stick")
+    if "filteredPlayers.slice" not in text:
+        why.append("the card does not bound the player list it draws")
+
+    pick = re.search(r"readonly property var player:(.*?)(?=\n    (?:readonly )?property|\n\n)", text, re.S)
+    if not pick:
+        why.append("MediaWidget has no `player` property to judge the chooser against")
+    elif "activePlayer" in pick.group(1):
+        why.append("the card's player is MprisController.activePlayer, which is "
+                   "`trackedPlayer ? trackedPlayer : filteredPlayers[0]`: a player that was once "
+                   "focused and then went quiet (a browser left open) keeps the card while another "
+                   "app plays, and the hidden-card rule turns that into no card at all")
+    if "isPlaying" not in text:
+        why.append("the card never looks at whether a player is playing")
+    if "MprisController.togglePlaying()" in text:
+        why.append("the transport goes through the controller, so with two players on the bus the "
+                   "play button acts on the one the controller tracks, not the one on screen")
     return (not why), why
 
 
@@ -697,7 +740,7 @@ def main():
     ap.add_argument("--list", action="store_true", help="list scenarios and exit")
     args = ap.parse_args()
 
-    scenarios = ["map", "natural", "hidden", "open", "render", "write", "resize", "week", "gates",
+    scenarios = ["map", "natural", "hidden", "chooser", "open", "render", "write", "resize", "week", "gates",
                  "click", "bad-index"]
     if args.list:
         print("\n".join(scenarios))
@@ -720,6 +763,8 @@ def main():
             ok, why = check_natural()
         elif name == "hidden":
             ok, why = check_hidden()
+        elif name == "chooser":
+            ok, why = check_chooser()
         else:
             d = run_scenario(name, generation, workdir, args.keep)
             if name == "render":
