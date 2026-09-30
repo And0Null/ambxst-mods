@@ -136,7 +136,7 @@ clear message until you install it.
 
 ---
 
-## desktop-widgets — `and0null.desktop-widgets` (v1.16.1)
+## desktop-widgets — `and0null.desktop-widgets` (v1.18.2)
 
 Widgets on your desktop, not in the dashboard: a clock, a month calendar, a weather
 card and a system card (CPU/temp/RAM, and GPU when detected) floating in liquid-glass
@@ -405,16 +405,21 @@ a right-anchored card shrinks and grows to the left and keeps its distance from 
 a group child has no card of its own: what it draws changes inside its parent's card, which
 owns the size. Re-applying a design resets families, the same deal visibility already has.
 
-The menu has **two shapes** and picks by screen: one column of 380px on a tall output, and
-two columns side by side — the widgets on the left, the calendars on the right, the footer
-across the bottom — when a single column would not fit the height. On this machine that is
-one column at 1920x1080 (831px tall with one calendar) and 808x587 on the 1366x768 output,
-where the single column would have been 59px too tall and hidden **Done**. The numbers are
-measured, not guessed (`tests/desktop-widgets-menu-geometry.py` reads them back out of the
-menu and checks the live panel against them), the calendar rows are capped per shape (6 in
-one column, 4 in two) so neither shape grows with how many calendars are in the file, and a
-height cap plus a scroll region remain as the backstop if a screen is smaller still. A third
-column never happens: 1208px does not fit a 1366-wide output with its margins.
+The menu is **horizontal on every screen wide enough for it**: two 380px columns side by
+side — the widgets on the left, the calendars on the right, the footer across the bottom —
+and a single 380px column only on a screen narrower than 812px. Height is the scarce axis on
+both outputs this desktop has (the 1920x1080 monitor and the 1366x768 laptop panel, where the
+same overlay is drawn on both), and the vertical shape the 1080 used to get was 949px tall —
+88% of the screen — and grew with every widget added. Both outputs now draw the same 808x629
+menu. The numbers are measured, not guessed (`tests/desktop-widgets-menu-geometry.py` reads
+them back out of the menu and checks the live panel against them), each list stops drawing past
+six rows (six widgets, six calendar rows) so the panel cannot grow with how many entries the
+files hold — past the cap the list scrolls and says how many rows are out of sight — and a
+height cap plus a scroll region remain as the backstop if a screen is smaller still. The widget
+list is capped in **whole rows**, never at a pixel offset that can slice a row in half, and the
+add-widget row sits outside that list so it can never be the thing that gets clipped: it used to
+be, by six pixels, and it is the row you add a widget with. A third column never happens: 1208px
+does not fit a 1366-wide output with its margins.
 
 To move widgets around, flip **Edit layout** on: cards get a highlighted border and
 become draggable (open-hand cursor); drag them, then click **Done** to commit.
@@ -470,7 +475,7 @@ itself proves nothing:
 | any card size and family, captured on a headless output | `python3 tests/calendar-scale-preview.py 720x400:detailed` |
 | the cell -> date mapping behind the dots: 96 months, 3 timezones, the formula **extracted from the shipped patch**, checked against the `layout.js` of the deployed generation | `node tests/calendar-cells.js` |
 | the sources file through the menu: opening the menu must write nothing, a real edit must write, a duplicate must be refused, and an **unparseable file must never be overwritten** | `python3 tests/calendar-menu-writes.py` |
-| the menu's shape per screen: the columns it picks, the width that implies, the height it is allowed and the live panel Hyprland reports — with the constants **read out of the shipped QML** | `python3 tests/desktop-widgets-menu-geometry.py` |
+| the menu's shape **and that nothing in it is clipped**: the columns it picks per real screen, the width that implies, the height it is allowed, how far the add-widget row sits from the list's own Flickable (2 means it is back inside the region that clips), and — from a capture of the live panel — the add-widget row as **painted** (a full list used to slice its bottom edge off, 26px of button drawn as 20) — with the constants **read out of the shipped QML** | `python3 tests/desktop-widgets-menu-geometry.py` |
 | the content-family selector: the tiers the menu offers are the ones the widget QMLs draw, the switches sit on the file's families (group children included, unknown families offered nothing), a pick on an option writes through the control's own signal, an out-of-range index writes nothing, the size each family is applied at is the one the widget's header declares (both tables read back out of the sources) and clears the widget's own gate, a pick **shrinks** as well as grows and doing it twice does not move the card twice, and the calendar's minimal tier is a week: the panel, asked at that card's inner size, draws **one** row of days that starts on a Monday and holds today, with its letters and without the title | `python3 tests/widget-family-menu.py` |
 | a day on a tap: three fixtures through the same panel and the same surface the shell ships — a day holding five events from three calendars (two of them overlapping, one duplicate merged out by UID), a day with nothing that says so — the ring following the service's day in the **month grid and in the week strip**, the tap's state machine (a second tap closes, and clearing empties it), and the day's label and times read as text; the cell→date formula is asked of the shipped panel and compared with the real date, and a copy of the panel with the cells off by one day plus a service with the toggle removed fails it | `python3 tests/calendar-day-detail.py` |
 | the day detail photographed on a headless output, in its own `XDG_CONFIG_HOME`: a day with five events from three calendars, a day that says it has none, and the ring on a cell that is not today — on the output the probe really drew on, with the surface confirmed in Hyprland's layer list | `python3 tests/day-detail-preview.py` |
