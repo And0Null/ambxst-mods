@@ -327,7 +327,15 @@ PanelWindow {
             MouseArea {
                 anchors.fill: parent
                 enabled: cell.editable
-                cursorShape: cell.dragging ? Qt.ClosedHandCursor : Qt.OpenHandCursor
+                // The hand cursor is EDIT MODE'S, and only edit mode's. A disabled
+                // MouseArea still applies its cursorShape, so leaving this as
+                // OpenHandCursor put a grabbing hand over EVERY card on the desktop,
+                // in normal use, on every widget type (reported on the live desktop).
+                // Outside edit mode the card is content, not a draggable thing, so
+                // the arrow is the honest cursor and each control speaks for itself.
+                cursorShape: cell.editable
+                    ? (cell.dragging ? Qt.ClosedHandCursor : Qt.OpenHandCursor)
+                    : Qt.ArrowCursor
 
                 onPressed: mouse => {
                     // Read while the x/y binding is still alive: cell.x/y is
