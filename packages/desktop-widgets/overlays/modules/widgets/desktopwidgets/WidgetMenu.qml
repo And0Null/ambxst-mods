@@ -156,23 +156,31 @@ PanelWindow {
     // 1366-wide output — a third column would not, which is why the menu never goes wider.
     readonly property int columnWidth: 380
     readonly property int columnGap: 16
-    // The menu's natural shape is ONE column, holding three blocks: the widgets, the
-    // calendars, the footer. A screen too short for that column gets two columns side by
-    // side instead of a scrollbar. Both numbers below are measured on the running shell,
-    // never guessed: one column is 807px with a single source and grows 42px per extra
-    // source row (the list stops drawing rows past six, so a column tops out at 1017 and
-    // a 1080-tall output still shows it whole). The two-column shape measures 808x574 on
-    // the 1366x768 output — it is the LEFT block that is tall there (the designs plus four
-    // widget rows), so it does not grow with the calendars at all. If a change makes these
-    // wrong, the estimate is what is wrong: the Flickable below is the backstop, and
-    // tests/desktop-widgets-menu-geometry.py checks the decision against the live shell.
-    readonly property int oneColumnHeight: 807 + Math.max(0, CalendarEventsService.entries.length - 1) * 42
-    readonly property bool twoColumns: (root.screen.height - 24) < root.oneColumnHeight
-                                        && root.screen.width >= (root.columnWidth * 2 + root.columnGap + 24)
+    // The shape is decided by WIDTH, not by height: the horizontal menu is the DEFAULT on
+    // every screen wide enough for it. The panel is a control surface, and height is the
+    // scarce axis on both outputs this desktop has (1366x768 and 1920x1080) — the same
+    // overlay is drawn on both, and the vertical shape it used to get on the 1080 was 949px
+    // tall (88% of the screen) and grew with every widget added, which is how the widget
+    // list's bottom edge came to be clipped. Only a screen too narrow for two columns keeps
+    // the single column; the height cap and the inner Flickable remain the backstop for a
+    // screen shorter than anything measured here. Measured live: two columns are 808x656 on
+    // the 1366x768 output and 808x700 on the 1920x1080 one, against the 412x949 the 1080
+    // used to draw.
+    readonly property bool twoColumns: root.screen.width >= (root.columnWidth * 2 + root.columnGap + 24)
     readonly property int menuColumns: root.twoColumns ? 2 : 1
-    // How many calendar rows are drawn at once. Fewer per column when the screen is short:
-    // the shapes have to fit, and the file is always the full editor.
-    readonly property int maxSourceRows: root.menuColumns === 2 ? 4 : 6
+    // Row pitch of each list, measured on the running shell: a widget row is 40px, a
+    // calendar row 42px. A cap expressed in ROWS rather than in pixels is what keeps a
+    // change from slicing a row in half at the boundary.
+    readonly property int widgetRowPitch: 40
+    readonly property int sourceRowPitch: 42
+    // How many rows each list draws at once. Both lists stop drawing past their cap (the
+    // config files stay the full editors) so the panel's height cannot grow with how many
+    // widgets or calendars are in them; past the cap the list scrolls and says how many are
+    // left. Six of each is what the SHORT screen holds with the other column full: six
+    // calendar rows put the two-column menu at 700px against the 744 it is allowed on the
+    // 1366x768 output, and the widget cap binds first on a taller screen.
+    readonly property int maxWidgetRows: 6
+    readonly property int maxSourceRows: 6
     readonly property int menuWidth: root.menuColumns === 1
                                      ? root.columnWidth
                                      : root.columnWidth * 2 + root.columnGap
@@ -398,15 +406,16 @@ PanelWindow {
 
                     // contentWidth/contentHeight MUST be bound here: a Flickable does not
                     // take them from its content, so an unbound one keeps its content at
-                    // 0x0 and the whole list (rows and add row) renders invisible. Height
-                    // comes from the column's implicit height, not from contentHeight, so
-                    // there is no circular binding.
+                    // 0x0 and the whole list renders invisible. Height comes from the
+                    // column's implicit height, not from contentHeight, so there is no
+                    // circular binding — and it is capped in WHOLE ROWS (never at a pixel
+                    // offset that can slice one in half).
                     Flickable {
                         id: widgetList
                         interactive: true
                         clip: true
                         Layout.fillWidth: true
-                        Layout.preferredHeight: Math.min(widgetListColumn.implicitHeight, 220)
+                        Layout.preferredHeight: Math.min(widgetListColumn.implicitHeight, root.maxWidgetRows * root.widgetRowPitch)
                         contentWidth: width
                         contentHeight: widgetListColumn.implicitHeight
 
@@ -461,36 +470,10 @@ PanelWindow {
                                             onPicked: index => DesktopWidgetsService.setFamily(widgetRow.index, -1, options[index])
                                         }
 
-                                    Switch {
-                                        checked: widgetRow.modelData.enabled !== false
-                                        onToggled: DesktopWidgetsService.setVisible(widgetRow.index, checked)
-
-                                        indicator: Rectangle {
-                                            implicitWidth: 36
-                                            implicitHeight: 18
-                                            x: parent.leftPadding
-                                            y: parent.height / 2 - height / 2
-                                            radius: height / 2
-                                            color: parent.checked ? Styling.srItem("primary") : Colors.surfaceBright
-                                            border.color: parent.checked ? Styling.srItem("primary") : Colors.outline
-
-                                            Rectangle {
-                                                x: parent.checked ? parent.width - width - 2 : 2
-                                                y: 2
-                                                width: parent.height - 4
-                                                height: width
-                                                radius: width / 2
-                                                color: parent.checked ? Colors.background : Colors.overSurfaceVariant
-
-                                                Behavior on x {
-                                                    enabled: Config.animDuration > 0
-                                                    NumberAnimation {
-                                                        duration: Config.animDuration / 2
-                                                    }
-                                                }
-                                            }
+                                        ToggleSwitch {
+                                            checked: widgetRow.modelData.enabled !== false
+                                            onToggled: DesktopWidgetsService.setVisible(widgetRow.index, checked)
                                         }
-                                    }
 
                                         IconButton {
                                             icon: Icons.trash
@@ -541,22 +524,41 @@ PanelWindow {
                                 }
                             }
 
-                            // Add widget row.
-                            RowLayout {
-                                Layout.fillWidth: true
-                                spacing: 6
+                        }
+                    }
 
-                                Repeater {
-                                    model: ["clock", "calendar", "weather", "system", "media"]
+                    // The list stops drawing past the cap, and says how many rows are out of
+                    // sight instead of hiding them: it scrolls (the wheel works over it) so
+                    // nothing is unreachable, and the file stays the full editor.
+                    Text {
+                        Layout.fillWidth: true
+                        visible: DesktopWidgetsService.widgets.length > root.maxWidgetRows
+                        text: "+" + (DesktopWidgetsService.widgets.length - root.maxWidgetRows) + " more (scroll the list)"
+                        textFormat: Text.PlainText
+                        color: Colors.overSurfaceVariant
+                        font.family: Config.theme.font
+                        font.pixelSize: Styling.fontSize(-1)
+                    }
 
-                                    IconButton {
-                                        required property string modelData
+                    // Add widget row — OUTSIDE the list's Flickable on purpose. This row is how
+                    // a widget gets added, and while it lived inside a column capped at 220px it
+                    // was the last thing in it: with five widgets the content measured 226px, so
+                    // the cap sliced the row's bottom edge off (its border and both bottom
+                    // corners) and the panel looked broken — on both screens, since the left
+                    // column is the same in both shapes.
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 6
 
-                                        icon: modelData === "clock" ? Icons.clock : modelData === "calendar" ? Icons.notepad : modelData === "weather" ? Icons.sunDim : modelData === "media" ? Icons.note : Icons.thermometer
-                                        label: root.widgetName(modelData)
-                                        onActivated: DesktopWidgetsService.addWidget(modelData, root.screen.width, root.screen.height)
-                                    }
-                                }
+                        Repeater {
+                            model: ["clock", "calendar", "weather", "system", "media"]
+
+                            IconButton {
+                                required property string modelData
+
+                                icon: modelData === "clock" ? Icons.clock : modelData === "calendar" ? Icons.notepad : modelData === "weather" ? Icons.sunDim : modelData === "media" ? Icons.note : Icons.thermometer
+                                label: root.widgetName(modelData)
+                                onActivated: DesktopWidgetsService.addWidget(modelData, root.screen.width, root.screen.height)
                             }
                         }
                     }
@@ -649,7 +651,7 @@ PanelWindow {
                                 Layout.fillWidth: true
                             }
 
-                            Switch {
+                            ToggleSwitch {
                                 checked: sourceRow.modelData.enabled !== false
                                 // Only a real toggle: assigning `checked` from the binding (delegate
                                 // creation, or a reload after an edit) also emits toggled, and a
@@ -658,32 +660,6 @@ PanelWindow {
                                 onToggled: {
                                     if (checked !== (sourceRow.modelData.enabled !== false))
                                         CalendarEventsService.setSourceEnabled(sourceRow.index, checked);
-                                }
-
-                                indicator: Rectangle {
-                                    implicitWidth: 36
-                                    implicitHeight: 18
-                                    x: parent.leftPadding
-                                    y: parent.height / 2 - height / 2
-                                    radius: height / 2
-                                    color: parent.checked ? Styling.srItem("primary") : Colors.surfaceBright
-                                    border.color: parent.checked ? Styling.srItem("primary") : Colors.outline
-
-                                    Rectangle {
-                                        x: parent.checked ? parent.width - width - 2 : 2
-                                        y: 2
-                                        width: parent.height - 4
-                                        height: width
-                                        radius: width / 2
-                                        color: parent.checked ? Colors.background : Colors.overSurfaceVariant
-
-                                        Behavior on x {
-                                            enabled: Config.animDuration > 0
-                                            NumberAnimation {
-                                                duration: Config.animDuration / 2
-                                            }
-                                        }
-                                    }
                                 }
                             }
 
@@ -826,35 +802,9 @@ PanelWindow {
                             Layout.fillWidth: true
                         }
 
-                        Switch {
+                        ToggleSwitch {
                             checked: DesktopWidgetsService.editMode
                             onToggled: DesktopWidgetsService.editMode = checked
-
-                            indicator: Rectangle {
-                                implicitWidth: 36
-                                implicitHeight: 18
-                                x: parent.leftPadding
-                                y: parent.height / 2 - height / 2
-                                radius: height / 2
-                                color: parent.checked ? Styling.srItem("primary") : Colors.surfaceBright
-                                border.color: parent.checked ? Styling.srItem("primary") : Colors.outline
-
-                                Rectangle {
-                                    x: parent.checked ? parent.width - width - 2 : 2
-                                    y: 2
-                                    width: parent.height - 4
-                                    height: width
-                                    radius: width / 2
-                                    color: parent.checked ? Colors.background : Colors.overSurfaceVariant
-
-                                    Behavior on x {
-                                        enabled: Config.animDuration > 0
-                                        NumberAnimation {
-                                            duration: Config.animDuration / 2
-                                        }
-                                    }
-                                }
-                            }
                         }
                     }
 
@@ -965,6 +915,49 @@ PanelWindow {
         height: 1
         color: Colors.outline
         opacity: 0.4
+    }
+
+    // The menu's on/off switch. Its whole reason to exist is the bug it fixes: the knob
+    // used to be bound to `parent.checked` INSIDE the indicator's own Rectangle, where
+    // `parent` is that Rectangle — which has no `checked`, so the binding silently took
+    // the false branch forever. The pill (bound one level up, where `parent` IS the
+    // Switch) changed colour and position correctly, and the knob never did: reading the
+    // live control, a checked Switch showed the ON pill with the OFF knob colour at the
+    // OFF x. That is what "they look the same on and off" was. Here the Switch carries an
+    // id, so every binding reads the control itself and there is no level to get wrong.
+    // One component, one place to fix — the row, the calendar sources and Edit layout all
+    // used to carry their own copy of those 25 broken lines.
+    component ToggleSwitch: Switch {
+        id: toggle
+
+        indicator: Rectangle {
+            implicitWidth: 36
+            implicitHeight: 18
+            x: toggle.leftPadding
+            y: toggle.height / 2 - height / 2
+            radius: height / 2
+            color: toggle.checked ? Styling.srItem("primary") : Colors.surfaceBright
+            // Hover is the only other feedback a switch this small can give: without it
+            // the control reads as decoration, which is half of why the row felt dead.
+            border.color: toggle.checked ? Styling.srItem("primary")
+                                         : (toggle.hovered ? Colors.overBackground : Colors.outline)
+
+            Rectangle {
+                x: toggle.checked ? parent.width - width - 2 : 2
+                y: 2
+                width: parent.height - 4
+                height: width
+                radius: width / 2
+                color: toggle.checked ? Colors.background : Colors.overSurfaceVariant
+
+                Behavior on x {
+                    enabled: Config.animDuration > 0
+                    NumberAnimation {
+                        duration: Config.animDuration / 2
+                    }
+                }
+            }
+        }
     }
 
     // Small themed push button, local to this menu.

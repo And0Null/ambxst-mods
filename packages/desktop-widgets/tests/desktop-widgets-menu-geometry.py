@@ -1,18 +1,28 @@
 #!/usr/bin/env python3
-"""Check the management menu's two shapes against the running shell.
+"""Check the management menu's shape — and that nothing in it is clipped — against the shell.
 
-The menu is one column of 380 on a tall screen and two columns side by side on a short one,
-where a single column would not fit. Both the decision and the numbers behind it are easy to
-break by accident — a theme font grows a row, a block is added, a constant is edited — so
-this reads the constants OUT OF the shipped QML (they cannot diverge from it) and then:
+The menu is HORIZONTAL on every screen wide enough for it: two 380px columns side by side,
+the widgets on the left, the calendars on the right, the footer across the bottom. Only a
+screen too narrow for two columns gets the single column. Height is the scarce axis on both
+outputs this desktop has (1366x768 and 1920x1080), the same overlay is drawn on both, and
+the vertical shape the 1080 used to get was 949px tall (88% of the screen) and grew with
+every widget added. The decision and the numbers behind it are easy to break by accident —
+a theme font grows a row, a block is added, a constant is edited — so this reads the
+constants OUT OF the shipped QML (they cannot diverge from it) and then:
 
   1. instantiates the menu in a probe, one per real screen, and checks the shape it picks,
      the width that shape implies and the height it is allowed (a probe can be trusted for
-     those: they are formulas, not laid-out pixels);
-  2. opens the menu on the focused screen through the shell's own IPC and checks the box
-     Hyprland reports for it against the constants — the numbers that ARE about pixels.
+     those: they are formulas, not laid-out pixels). It also checks WHERE the add-widget row
+     lives: outside the widget list's Flickable, because that list is the one region of the
+     menu that clips its content;
+  2. opens the menu on the focused screen through the shell's own IPC, checks the box
+     Hyprland reports against the constants, and CAPTURES that box to measure the add-widget
+     row in pixels — the row that used to be the last thing inside the list, where a full
+     list sliced its bottom edge off (26px of button drawn as 20). The box is the right size
+     either way, so pixels are the only place that bug shows.
 
-Read-only: it never writes a config. It does open and close the menu once.
+Read-only against the config: it never writes one. It opens and closes the menu once, and
+takes one screenshot of it.
 
     python3 tests/desktop-widgets-menu-geometry.py
     python3 tests/desktop-widgets-menu-geometry.py --keep   # keep the probe dir
@@ -28,6 +38,8 @@ import sys
 import tempfile
 import time
 from pathlib import Path
+
+from PIL import Image
 
 HERE = Path(__file__).resolve().parent
 MENU = HERE.parent / "overlays/modules/widgets/desktopwidgets/WidgetMenu.qml"
@@ -58,15 +70,47 @@ ShellRoot {
         interval: 8000
         onTriggered: Qt.quit()
     }
+
+    // The add-widget row is identified by a control (the "Weather" IconButton, which is the
+    // only item in the menu carrying a `label`), and then by how many Flickables sit above
+    // it: the menu's own outer one is always there, so one means the row is OUTSIDE the
+    // widget list (it cannot be clipped) and two means it is back inside it.
+    function flickableDepth(item) {
+        var d = 0;
+        var p = item ? item.parent : null;
+        while (p) {
+            if (typeof p.contentHeight === "number" && typeof p.contentWidth === "number")
+                d++;
+            p = p.parent;
+        }
+        return d;
+    }
+
+    function findByLabel(item, label) {
+        if (!item)
+            return null;
+        if (item.label === label)
+            return item;
+        var kids = item.children || [];
+        for (var i = 0; i < kids.length; i++) {
+            var hit = findByLabel(kids[i], label);
+            if (hit)
+                return hit;
+        }
+        return null;
+    }
+
     Variants {
         model: Quickshell.screens
         delegate: WidgetMenu {
+            id: menu
             required property var modelData
             screen: modelData
             Component.onCompleted: root.lines.push(JSON.stringify({
                 name: modelData.name, height: modelData.height, width: modelData.width,
                 columns: menuColumns, two: twoColumns, panelWidth: implicitWidth,
-                maxHeight: maxMenuHeight, rows: maxSourceRows, entries: CalendarEventsService.entries.length
+                maxHeight: maxMenuHeight, rows: maxSourceRows, entries: CalendarEventsService.entries.length,
+                addRowFlickables: flickableDepth(findByLabel(menu.contentItem, "Weather"))
             }))
         }
     }
@@ -88,16 +132,26 @@ def constants():
     """Read the layout constants out of the shipped QML."""
     text = MENU.read_text()
     def one(pattern, what):
-        m = re.search(pattern, text)
+        m = re.search(pattern, text, re.S)
         if not m:
             sys.exit(f"could not read {what} out of {MENU}")
         return [int(g) for g in m.groups()]
     width, = one(r"property int columnWidth:\s*(\d+)", "columnWidth")
     gap, = one(r"property int columnGap:\s*(\d+)", "columnGap")
-    base, per_row = one(r"property int oneColumnHeight:\s*(\d+)\s*\+\s*Math\.max\([^)]*\)\s*\*\s*(\d+)", "oneColumnHeight")
-    rows_two, rows_one = one(r"property int maxSourceRows:.*?\?\s*(\d+)\s*:\s*(\d+)", "maxSourceRows")
-    return {"width": width, "gap": gap, "base": base, "perRow": per_row,
-            "rowsTwo": rows_two, "rowsOne": rows_one}
+    wrows, = one(r"property int maxWidgetRows:\s*(\d+)", "maxWidgetRows")
+    srows, = one(r"property int maxSourceRows:\s*(\d+)", "maxSourceRows")
+    wpitch, = one(r"property int widgetRowPitch:\s*(\d+)", "widgetRowPitch")
+    pitch, = one(r"property int sourceRowPitch:\s*(\d+)", "sourceRowPitch")
+    button, = one(r"component IconButton: Rectangle \{.*?height:\s*(\d+)", "the add-row button height")
+    # The two facts the clipping bug hid behind, checked on the SOURCE because they are
+    # structural: the list stops at a whole number of rows, and the add row is not in it.
+    whole_rows = re.search(
+        r"Layout\.preferredHeight:\s*Math\.min\(widgetListColumn\.implicitHeight,\s*"
+        r"root\.maxWidgetRows \* root\.widgetRowPitch\)", text)
+    add_row_after = text.index("// Add widget row") > text.index("id: widgetList")
+    return {"width": width, "gap": gap, "widgetRows": wrows, "rows": srows,
+            "widgetPitch": wpitch, "perRow": pitch, "button": button,
+            "wholeRows": bool(whole_rows), "addRowText": add_row_after}
 
 
 def generations():
@@ -106,7 +160,7 @@ def generations():
 
 
 def shell_pid():
-    out = subprocess.run(["pgrep", "-f", r"qs -p .*shell.qml"], capture_output=True, text=True).stdout.split()
+    out = subprocess.run(["pgrep", "-f", r"qs -p .*shell\.qml"], capture_output=True, text=True).stdout.split()
     return out[0] if out else None
 
 
@@ -117,9 +171,17 @@ def probe_shapes(generation, keep):
     os.symlink(generation / "config", d / "config")
     out = d / "out.txt"
     env = dict(os.environ, GEO_OUT=str(out))
-    subprocess.run(["timeout", "60", "qs", "-p", str(d / "probe.qml")],
-                   capture_output=True, text=True, env=env)
+    run = subprocess.run(["timeout", "60", "qs", "-p", str(d / "probe.qml")],
+                         capture_output=True, text=True, env=env)
     shapes = [json.loads(l) for l in (out.read_text().splitlines() if out.exists() else []) if l.startswith("{")]
+    if not shapes:
+        # A probe that failed to LOAD prints nothing useful in the log file, so the shell's
+        # own stderr is the only place the reason shows up. Say it, or a broken probe reads
+        # exactly like a missing generation.
+        err = [l for l in run.stdout.splitlines() + run.stderr.splitlines()
+               if "ERROR" in l or "caused by" in l]
+        for line in err[:6]:
+            print(f"        probe: {line.strip()}")
     if not keep:
         shutil.rmtree(d, ignore_errors=True)
     return shapes
@@ -149,6 +211,49 @@ def live_box(pid, want_open):
     return box()
 
 
+def painted_bands(im, x0, x1, y0, y1, min_px=20):
+    """Rows of a capture that carry paint, grouped into bands (start, end, height)."""
+    bands, cur = [], None
+    for y in range(y0, y1):
+        n = 0
+        for x in range(x0, x1):
+            p = im.getpixel((x, y))
+            if sum(p) > 95 or (max(p) - min(p)) > 14:
+                n += 1
+        if n > min_px and cur is None:
+            cur = y
+        elif n <= min_px and cur is not None:
+            bands.append((cur, y - 1, y - cur))
+            cur = None
+    if cur is not None:
+        bands.append((cur, y1 - 1, y1 - cur))
+    return bands
+
+
+def measure_add_row(b, k):
+    """Height of the add-widget row as PAINTED, in pixels, from a capture of the live panel.
+
+    The row is the band right before the first separator line below the widget list, and
+    both a complete 26px button and a clipped one sit somewhere in there — so the number is
+    the check: the shipped button draws 26 rows, and this returns what actually reached the
+    screen.
+    """
+    shot = Path(tempfile.mkdtemp(prefix="menupix-")) / "panel.png"
+    r = subprocess.run(["grim", "-g", f"{b['x']},{b['y']} {b['w']}x{b['h']}", str(shot)],
+                       capture_output=True, text=True)
+    if r.returncode != 0 or not shot.exists():
+        return None, f"grim failed: {r.stderr.strip()}"
+    im = Image.open(shot).convert("RGB")
+    # The left column, whatever the shape: the list and the add row live at the same x in
+    # both (the panel's own 16px margin plus the column).
+    x0, x1 = 30, min(k["width"] + 10, im.size[0] - 16)
+    bands = painted_bands(im, x0, x1, 150, im.size[1] - 120)
+    sep = next((i for i, band in enumerate(bands) if band[2] <= 1), None)
+    if sep is None or sep == 0:
+        return None, "no separator found under the widget list"
+    return bands[sep - 1][2], None
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -158,29 +263,36 @@ def main():
     k = constants()
     generation = generations()
     print(f"generation: {generation.name}")
-    print(f"constants: column {k['width']}px, gap {k['gap']}px, one column {k['base']}px "
-          f"+{k['perRow']}/row, rows {k['rowsOne']} (one column) / {k['rowsTwo']} (two)")
+    print(f"constants: column {k['width']}px, gap {k['gap']}px, list cap {k['widgetRows']} rows "
+          f"of {k['widgetPitch']}px, calendar rows {k['rows']} of {k['perRow']}px, "
+          f"add-row button {k['button']}px")
 
     entries = len(json.loads(SOURCES.read_text())["sources"]) if SOURCES.exists() else 0
-    drawn = min(entries, k["rowsOne"])
-    print(f"sources in the file: {entries} (one column would draw {drawn})")
+    print(f"sources in the file: {entries} (the menu draws {min(entries, k['rows'])})")
+
+    failures = []
+    if not k["wholeRows"]:
+        failures.append("source")
+        print("[FAIL] the widget list's cap is not a whole number of rows: a pixel cap can "
+              "slice the last row in half")
+    if not k["addRowText"]:
+        failures.append("source")
+        print("[FAIL] the add-widget row does not sit below the widget list in the file")
 
     shapes = probe_shapes(generation, args.keep)
     if not shapes:
         sys.exit("the probe produced nothing - is a shell generation installed?")
 
-    failures = []
     two_panel = k["width"] * 2 + k["gap"] + 32
     one_panel = k["width"] + 32
     for s in sorted(shapes, key=lambda s: s["height"]):
         fits = s["height"] - 24
-        expected_one = k["base"] + max(0, drawn - 1) * k["perRow"]
-        expect_two = fits < expected_one
+        expect_two = s["width"] >= (k["width"] * 2 + k["gap"] + 24)
         ok, why = True, []
         if s["two"] != expect_two:
             ok, why = False, why + [f"picked {'two columns' if s['two'] else 'one column'}; "
-                                    f"a one-column {expected_one}px does not fit {fits}px so it should be "
-                                    f"{'two' if expect_two else 'one'}"]
+                                    f"at {s['width']}px wide it should be "
+                                    f"{'two (the horizontal menu fits)' if expect_two else 'one (too narrow for two)'}"]
         if s["columns"] != (2 if expect_two else 1):
             ok, why = False, why + [f"menuColumns={s['columns']}"]
         want_width = two_panel if expect_two else one_panel
@@ -188,8 +300,12 @@ def main():
             ok, why = False, why + [f"panel width {s['panelWidth']}, expected {want_width}"]
         if s["maxHeight"] != max(240, s["height"] - 24):
             ok, why = False, why + [f"max height {s['maxHeight']} on a {s['height']}px screen"]
-        if s["rows"] != (k["rowsTwo"] if expect_two else k["rowsOne"]):
+        if s["rows"] != k["rows"]:
             ok, why = False, why + [f"draws {s['rows']} calendar rows"]
+        # 1 = only the menu's own outer Flickable: outside the widget list, so unclippable.
+        if s["addRowFlickables"] != 1:
+            ok, why = False, why + [f"the add-widget row has {s['addRowFlickables']} Flickables "
+                                    f"above it; 2 means it is back inside the clipped list"]
         print(f"[{'PASS' if ok else 'FAIL'}] {s['name']} ({s['width']}x{s['height']}): "
               f"{'two columns' if expect_two else 'one column'}, panel {want_width}px, "
               f"cap {s['maxHeight']}px, rows {s['rows']}")
@@ -198,16 +314,14 @@ def main():
         if not ok:
             failures.append(s["name"])
 
-    # One column on the tallest screen must still hold the maximum number of rows: otherwise
-    # the two shapes would both need the scrollbar the design exists to avoid.
-    tallest = max(shapes, key=lambda s: s["height"])
-    worst = k["base"] + max(0, min(k["rowsOne"], 6) - 1) * k["perRow"]
-    if not tallest["two"] and worst > max(240, tallest["height"] - 24):
-        failures.append(tallest["name"])
-        print(f"[FAIL] {tallest['name']}: a full one-column menu ({worst}px) would not fit "
-              f"{max(240, tallest['height'] - 24)}px - the cap would start scrolling")
+    # The horizontal shape is the point of the design: it has to fit the SHORTEST screen.
+    shortest = min(shapes, key=lambda s: s["height"])
+    if shortest["two"]:
+        worst = max(240, shortest["height"] - 24)
+        print(f"        {shortest['name']} allows a {worst}px panel; the horizontal menu is "
+              f"{k['widgetRows']} widget rows plus {k['rows']} calendar rows")
 
-    # The live number: the box Hyprland reports for the panel the shell actually draws.
+    # The live numbers: the box Hyprland reports, and the add-widget row as painted.
     pid = shell_pid()
     if not pid:
         print("[SKIP] no running shell - the live box was not measured")
@@ -218,27 +332,29 @@ def main():
             failures.append("live")
             print("[FAIL] the menu could not be opened through IPC")
         else:
-            short = opened["w"] == two_panel
-            if not short and opened["w"] != one_panel:
+            two = opened["w"] == two_panel
+            if not two and opened["w"] != one_panel:
                 failures.append("live")
                 print(f"[FAIL] the live panel is {opened['w']}px wide, which is neither shape")
-            elif short:
-                cap = max(240, next(s["height"] for s in shapes if s["two"]) - 24)
-                ok = opened["h"] <= cap
-                print(f"[{'PASS' if ok else 'FAIL'}] live {opened['monitor']}: two columns, "
-                      f"{opened['w']}x{opened['h']} (the short screen allows {cap}px of height)")
-                if not ok:
-                    failures.append("live")
-                    print("        the two-column shape does not fit - it would scroll")
             else:
-                want = min(k["base"] + max(0, drawn - 1) * k["perRow"],
-                           max(240, next(s["height"] for s in shapes if not s["two"]) - 24))
-                ok = opened["h"] == want
-                print(f"[{'PASS' if ok else 'FAIL'}] live {opened['monitor']}: one column, "
-                      f"{opened['w']}x{opened['h']} (expected {want}px for {entries} source(s))")
+                cap = max(240, next(s["height"] for s in shapes if s["two"] == two) - 24)
+                ok = opened["h"] <= cap
+                print(f"[{'PASS' if ok else 'FAIL'}] live {opened['monitor']}: "
+                      f"{'two columns' if two else 'one column'}, {opened['w']}x{opened['h']} "
+                      f"(this screen allows {cap}px of height)")
                 if not ok:
                     failures.append("live")
-                    print("        the measured height does not match the constants - a row grew")
+                    print("        the menu does not fit - it would clip or scroll")
+            painted, why = measure_add_row(opened, k)
+            if painted is None:
+                print(f"[SKIP] the add-widget row was not measured: {why}")
+            else:
+                ok = painted >= k["button"] - 1
+                print(f"[{'PASS' if ok else 'FAIL'}] add-widget row painted {painted}px of "
+                      f"{k['button']} (a clipped row draws less)")
+                if not ok:
+                    failures.append("clip")
+                    print("        the widget list is cutting the add-widget row again")
             if before is None:
                 live_box(pid, False)
 
@@ -246,7 +362,7 @@ def main():
     if failures:
         print(f"FAILED: {', '.join(failures)}")
         sys.exit(1)
-    print("PASS: the menu picks the shape the screen needs, and the shape fits")
+    print("PASS: the menu is horizontal where it fits, it fits, and nothing in it is clipped")
 
 
 if __name__ == "__main__":
