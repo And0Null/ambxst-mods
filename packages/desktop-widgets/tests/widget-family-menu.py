@@ -666,6 +666,59 @@ def check_chooser():
     return (not why), why
 
 
+def check_detailed():
+    """The detailed media card must be CONTROLS, not more text.
+
+    The full family draws the reference shape (art, title, artist, seek bar with
+    times, transport). If the detailed one grew rows of metadata instead, it would be
+    the same information in a taller box — which is the thing a family must never be.
+    So this pins the five capabilities that only the detailed card may write, and
+    pins that they go through the CONTROLLER's setters, not a raw player property:
+    a second player on the bus makes `MprisController.activePlayer` a different
+    object than the one on screen, and a write would land on the wrong player.
+    """
+    src = MOD / "overlays/modules/widgets/desktopwidgets/MediaWidget.qml"
+    if not src.exists():
+        return False, ["MediaWidget.qml does not exist"]
+    text = src.read_text()
+    why = []
+
+    for prop, setter in (("shuffle", "setShuffle"), ("loopState", "setLoopState"),
+                         ("volume", "volume")):
+        if setter not in text:
+            why.append(f"the detailed card never calls {setter}(), so it cannot control "
+                       f"{prop} at all")
+
+    if "MprisController.setShuffle(" not in text:
+        why.append("shuffle is written straight onto the player instead of through "
+                   "MprisController.setShuffle(): with two players on the bus the write "
+                   "lands on the one the controller tracks, not the one on screen")
+    if "MprisController.setLoopState(" not in text:
+        why.append("loop is written straight onto the player instead of through "
+                   "MprisController.setLoopState(), with the same wrong-player write")
+
+    if "position" not in text:
+        why.append("the card never reads position, so the seek bar cannot show progress")
+    if "canSeek" not in text:
+        why.append("the card never gates the seek bar on the player's own canSeek")
+
+    # The bar and the volume control are the two things a tap must reach, so they
+    # need an input handler each; a purely visual copy is not a control.
+    if "DragHandler" not in text and "MouseArea" not in text and "position =" not in text:
+        why.append("neither the seek bar nor the volume control has anything that could "
+                   "receive a drag, so both would be pictures of a control")
+
+    if "MprisLoopState" not in text:
+        why.append("loop never reads MprisLoopState, so it cannot show which of "
+                   "off/track/playlist is active")
+
+    for icon in ("shuffle", "repeatOnce", "repeat"):
+        if f"Icons.{icon}" not in text:
+            why.append(f"the loop/shuffle control never draws Icons.{icon}, so the "
+                       f"three states cannot be told apart")
+    return (not why), why
+
+
 def service_gate(type_name, family):
     """The service's own gate numbers, parsed out of the `familyGate` map.
 
@@ -740,8 +793,8 @@ def main():
     ap.add_argument("--list", action="store_true", help="list scenarios and exit")
     args = ap.parse_args()
 
-    scenarios = ["map", "natural", "hidden", "chooser", "open", "render", "write", "resize", "week", "gates",
-                 "click", "bad-index"]
+    scenarios = ["map", "natural", "hidden", "chooser", "detailed", "open", "render", "write", "resize",
+                 "week", "gates", "click", "bad-index"]
     if args.list:
         print("\n".join(scenarios))
         return 0
@@ -765,6 +818,8 @@ def main():
             ok, why = check_hidden()
         elif name == "chooser":
             ok, why = check_chooser()
+        elif name == "detailed":
+            ok, why = check_detailed()
         else:
             d = run_scenario(name, generation, workdir, args.keep)
             if name == "render":
