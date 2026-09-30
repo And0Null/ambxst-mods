@@ -349,7 +349,7 @@ Singleton {
         weather: ["compact", "full", "detailed"],
         system: ["compact", "full", "detailed"],
         calendar: ["compact", "full", "detailed"],
-        media: ["full"]
+        media: ["full", "detailed"]
     })
 
     // Families for a type, always as a fresh list: the menu binds it straight to a
@@ -418,7 +418,7 @@ Singleton {
         // cards in a layout line up. Keep any comment on its OWN line: the harness parses
         // one entry per line and a trailing comment would break the match, dropping the
         // entry from the table it compares against the widget's header.
-        media: { full: { w: 360, h: 360 } }
+        media: { full: { w: 280, h: 400 }, detailed: { w: 280, h: 500 } }
     })
 
     // null for a type with no families of its own (a group card draws its children) and
@@ -475,7 +475,7 @@ Singleton {
         if (type === "system")
             return { w: 280, h: 190 };
         if (type === "media")
-            return { w: 360, h: 360 };
+            return { w: 280, h: 400 };
         return { w: 300, h: 220 };
     }
 
