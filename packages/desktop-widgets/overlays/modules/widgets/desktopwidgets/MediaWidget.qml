@@ -297,16 +297,9 @@ Item {
             id: artistRow
             anchors.horizontalCenter: parent.horizontalCenter
             spacing: 4
-            // A Row stacks its children side by side and gives every one of them the
-            // Row's FULL height, aligning them by `verticalAlignment` rather than by
-            // position — so the caret is centred on the artist line here, and stays
-            // centred whatever height that line resolves to. Without it the caret's 14px
-            // box sat on the Row's top edge beside an 18px text box, 2px high: measured at
-            // -2.5px of ink off the line's centre, which reads as a caret stuck to the
-            // ceiling instead of centred on the artist.
-            verticalAlignment: Text.AlignVCenter
 
             Text {
+                id: artistName
                 textFormat: Text.PlainText
                 text: root.artistText
                 color: root.alpha(Colors.overBackground, 0.7)
@@ -319,13 +312,23 @@ Item {
                 width: Math.min(implicitWidth, root.artSide - (root.canChoose ? 18 : 0))
             }
 
+            // The caret is centred on the artist line by GIVING IT THE LINE'S BOX, not by
+            // nudging it: a Row gives each child the Row's height top-aligned, and the
+            // caret's own glyph box came out 2px shorter than the text's, so its ink sat
+            // -1px off on the box and -2.5px off in the pixels against the line's centre.
+            // The identity row's caret below uses `anchors.verticalCenter` and is exact;
+            // here the box is matched as well, because this line is ELIDED (its width can
+            // be clamped to the cover) and a fixed-height elided line would drift from
+            // whatever the Row resolved to.
             Text {
+                height: artistName.height
                 visible: root.canChoose
                 text: Icons.caretDown
                 color: artistHover.hovered ? Colors.primary : root.alpha(Colors.overBackground, 0.7)
                 // Icons.font: a Phosphor glyph drawn with the UI font is tofu.
                 font.family: Icons.font
                 font.pixelSize: root.labelSize
+                verticalAlignment: Text.AlignVCenter
 
                 HoverHandler {
                     id: artistHover
