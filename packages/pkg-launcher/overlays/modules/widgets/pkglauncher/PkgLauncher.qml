@@ -316,9 +316,14 @@ PanelWindow {
         }
         onExited: function(code) {
             root.repoDone = true;
-            if (code !== 0 || root.searchGen !== repoProc.gen) {
-                if (code !== 0)
-                    root.setStatus("pacman failed (exit " + code + ")");
+            // Stale generation: drop silently (the running query owns the status).
+            if (root.searchGen !== repoProc.gen) {
+                root.finishStatus();
+                return;
+            }
+            // -Ss exits 1 when the term simply matches nothing, not on failure.
+            if (code > 1) {
+                root.setStatus("pacman failed (exit " + code + ")");
                 root.finishStatus();
                 return;
             }
@@ -342,9 +347,14 @@ PanelWindow {
         }
         onExited: function(code) {
             root.aurDone = true;
-            if (code !== 0 || root.searchGen !== aurProc.gen) {
-                if (code !== 0)
-                    root.setStatus(root.aurHelper + " failed (exit " + code + ")");
+            // Stale generation: drop silently (the running query owns the status).
+            if (root.searchGen !== aurProc.gen) {
+                root.finishStatus();
+                return;
+            }
+            // -Ss exits 1 when the term simply matches nothing, not on failure.
+            if (code > 1) {
+                root.setStatus(root.aurHelper + " failed (exit " + code + ")");
                 root.finishStatus();
                 return;
             }
