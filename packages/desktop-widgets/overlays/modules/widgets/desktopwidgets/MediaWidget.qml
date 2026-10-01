@@ -533,7 +533,17 @@ Item {
             width: parent.width
             spacing: 10
 
+            // The mode button is a bare `Text` in this Row, and a Row hands every child its
+            // FULL height TOP-aligned: the shuffle sat 3.5px above the volume icon and the
+            // volume track beside it (measured off the capture, glyph centre 23.0 against
+            // 26.5). The volume half centres its own children with
+            // `anchors.verticalCenter`, so the row had two different baselines in it. This
+            // Row is `height: 24` by its tallest child (the volume Item), and centring the
+            // button on it puts both halves on one line — the same treatment the identity
+            // row's icons already have.
             TransportButton {
+                id: modeButton
+                anchors.verticalCenter: parent.verticalCenter
                 icon: root.modeIcon()
                 enabledControl: true
                 iconColor: root.modeActive ? Colors.primary
