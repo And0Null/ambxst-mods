@@ -14,7 +14,7 @@ later.
 
 ---
 
-## pkg-launcher — `and0null.pkg-launcher` (v1.6.0)
+## pkg-launcher — `and0null.pkg-launcher` (v1.6.1)
 
 A pacseek-style package launcher for Ambxst: type to search the sync repos (`pacman`)
 and the AUR live, browse what you already have installed, and hand install/remove/update
