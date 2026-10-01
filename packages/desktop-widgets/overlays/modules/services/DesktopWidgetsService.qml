@@ -418,7 +418,7 @@ Singleton {
         // cards in a layout line up. Keep any comment on its OWN line: the harness parses
         // one entry per line and a trailing comment would break the match, dropping the
         // entry from the table it compares against the widget's header.
-        media: { full: { w: 280, h: 400 }, detailed: { w: 280, h: 500 } }
+        media: { full: { w: 280, h: 400 }, detailed: { w: 280, h: 457 } }
     })
 
     // null for a type with no families of its own (a group card draws its children) and
