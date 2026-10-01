@@ -3,7 +3,7 @@
     "manifestVersion": 1,
     "id": "and0null.pkg-launcher",
     "name": "Package launcher (pacseek-style)",
-    "version": "1.6.0",
+    "version": "1.6.1",
     "description": "Launcher-style package overlay: live search across the sync repos (pacman) and the AUR (via a configurable helper: paru or yay, chosen in Settings), installed badges, and install/remove handed off to an interactive terminal where the helper owns the sudo prompt and progress. Keyboard-first: type, arrows, Enter installs, Ctrl+D removes. Opened via the pkg-launcher command (SUPER+SHIFT+P) or the IPC service.",
     "license": "MIT",
     "author": "And0Null",
