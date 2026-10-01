@@ -3,6 +3,12 @@ import QtQuick
 import QtQuick.Effects
 import qs.modules.theme
 import qs.modules.services
+// The mono font for the two time labels reads Config.theme.monoFont, and `Config` is the
+// qs.config singleton: without this import both bindings threw `ReferenceError: Config is
+// not defined` (measured live in the running shell's own qslog, twice per card) and the
+// times silently fell back to the UI font. Styling only re-exports font SIZES, so the
+// family has to come from here.
+import qs.config
 
 import Quickshell.Services.Mpris
 
@@ -10,8 +16,11 @@ import Quickshell.Services.Mpris
 // AMOUNTS of what you can DO with the player, never the same thing made smaller:
 //   full     (280x400) the reference shape: artwork, title, artist, a seek bar with the
 //                     elapsed and total times, and the transport
-//   detailed (280x500) the same, plus the CONTROLS: shuffle, loop, a volume slider and
+//   detailed (280x457) the same, plus the CONTROLS: shuffle, loop, a volume slider and
 //                     the player identity with the switcher
+//
+// The difference between those two heights IS the two extra rows (24 + 17 + two 8px
+// spacings = 57), not a bigger cover — see the arithmetic by `artSide` below.
 //
 // Everything comes from MprisController (qs.modules.services), the shell's own MPRIS
 // singleton: it already owns the player list, the capability flags and the persisted
@@ -180,16 +189,26 @@ Item {
     // width, not a centred square inside a wider card, and at 248 of widget it is also the
     // only size that leaves room for everything below in a 400-tall card.
     //
-    // full    card 280x400 -> widget 248x368:
-    //   248 (art) + 8 + 21 (title) + 8 + 20 (artist) + 8 + 22 (seek row) + 8 + 22 (transport)
-    //   = 365 of 368. The seek row is 22 of its own: a 6px rail, 2px gap and the 14px times
-    //   line — the times ride INSIDE that row, they are not a row of their own.
-    // detailed card 280x500 -> widget 248x468: the same 365 plus 8 + 24 (mode + volume)
-    //   + 8 + 20 (identity) = 425 of 468, so the artwork keeps its 248 in both and the
-    //   difference in height is spent on the two extra rows, not on a bigger cover.
-    // The names in those two lines are WIDGET space: a widget measures the card minus
-    // WidgetFrame's 16px margin per side, so 400 and 500 here are card numbers and 368
-    // and 468 are what the card hands this tree.
+    // full    card 280x400 -> widget 248x368: 248 (art) + 8 + 20 (title) + 8 + 18 (artist)
+    //   + 8 + 28 (seek row: a 6px rail, 2px gap, 20px times line) + 8 + 17 (transport)
+    //   = 363, which is the whole 368. The seek row's numbers are its real ones: the times
+    //   ride INSIDE that row, they are not a row of their own.
+    // detailed card 280x457 -> widget 248x425: the same 363 plus 8 + 24 (mode + volume)
+    //   plus 8 + 17 (identity) = 420 of 425. The artwork keeps its 248 in both, and the
+    //   difference in height IS the two extra rows — which is what the comment above the
+    //   families promises. It used to declare 280x500, i.e. 468 of widget for 420 of
+    //   content: 48px of empty card below the identity row, on a 500-tall card (measured
+    //   live, and the family-size-preview photographs it). A family is an AMOUNT of
+    //   information and the room that amount needs; a taller box with the same rows in it
+    //   is the taller box with the same rows in it. tests/media-family-fit.py holds both
+    //   numbers: the caret's ink on the artist line, and this card's slack at the bottom.
+    //
+    // Every number above is WIDGET space except the two card sizes: a widget measures the
+    // card minus WidgetFrame's 16px margin per side, so 400 and 457 here are card numbers
+    // and 368 and 425 are what the card hands this tree. Those leaf heights come from font
+    // metrics (a Text's own height), so they are the same with or without a laid-out
+    // window — which matters, because a bare ShellRoot never lays this tree out and every
+    // Row in it then reports height 0.
     readonly property int artSide: width
 
     Column {
@@ -278,6 +297,14 @@ Item {
             id: artistRow
             anchors.horizontalCenter: parent.horizontalCenter
             spacing: 4
+            // A Row stacks its children side by side and gives every one of them the
+            // Row's FULL height, aligning them by `verticalAlignment` rather than by
+            // position — so the caret is centred on the artist line here, and stays
+            // centred whatever height that line resolves to. Without it the caret's 14px
+            // box sat on the Row's top edge beside an 18px text box, 2px high: measured at
+            // -2.5px of ink off the line's centre, which reads as a caret stuck to the
+            // ceiling instead of centred on the artist.
+            verticalAlignment: Text.AlignVCenter
 
             Text {
                 textFormat: Text.PlainText
