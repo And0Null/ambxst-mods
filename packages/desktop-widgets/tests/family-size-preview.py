@@ -29,12 +29,16 @@ OUTDIR = os.path.expanduser("~/.local/state/ambxst/family-size-preview")
 
 GAP, LEFT, TOP = 32, 48, 48
 ROWS = [
+    # Every type in both of its families, so the row is a comparison and not a sample: the
+    # media card is the one whose `compact` is a different ARRANGEMENT (cover beside the
+    # rows) and not the same stack made shorter, and seeing it next to its own `full` is the
+    # only way the preview shows that.
     ("full", [("clock", 280, 190), ("weather", 280, 190), ("system", 280, 190),
-              ("calendar", 360, 360)]),
+              ("calendar", 360, 360), ("media", 280, 400)]),
     ("compact", [("clock", 280, 80), ("weather", 280, 80), ("system", 280, 80),
-                 ("calendar", 280, 112)]),
+                 ("calendar", 280, 112), ("media", 280, 80)]),
 ]
-CROP_W, CROP_H = 1400, 620
+CROP_W, CROP_H = 1690, 620
 OUTPUT_MODE = "1920x1080"
 
 

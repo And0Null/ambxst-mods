@@ -12,15 +12,23 @@ import qs.config
 
 import Quickshell.Services.Mpris
 
-// Desktop player card: what is on the MPRIS bus right now, in content families — two
-// AMOUNTS of what you can DO with the player, never the same thing made smaller:
+// Desktop player card: what is on the MPRIS bus right now, in content families — three
+// AMOUNTS of information, never the same thing made smaller:
+//   compact  (280x80)  the strip: the cover as the strip's own square on the left, the
+//                      title and the transport beside it. No artist line and no seek bar:
+//                      the artist beside a cover of the same height is the line the strip
+//                      does not have, and the seek row costs 36px more
 //   full     (280x400) the reference shape: artwork, title, artist, a seek bar with the
-//                     elapsed and total times, and the transport
+//                      elapsed and total times, and the transport
 //   detailed (280x457) the same, plus the CONTROLS: shuffle, loop, a volume slider and
-//                     the player identity with the switcher
+//                      the player identity with the switcher
 //
-// The difference between those two heights IS the two extra rows (24 + 17 + two 8px
+// The difference between full and detailed IS the two extra rows (24 + 17 + two 8px
 // spacings = 57), not a bigger cover — see the arithmetic by `artSide` below.
+//
+// `compact` is the family whose rows are not a stack under the cover: the cover stops
+// being the card's width there and the two rows move BESIDE it, which is why the cover and
+// the rows are two boxes placed by hand and not one Column's flow.
 //
 // Everything comes from MprisController (qs.modules.services), the shell's own MPRIS
 // singleton: it already owns the player list, the capability flags and the persisted
@@ -39,6 +47,11 @@ Item {
     // family can never be half applied: the seek bar, the control row and the identity
     // row all hang off this same value.
     readonly property bool detailed: root.family === "detailed"
+
+    // The strip. One flag as well, and read in more places than `detailed`, because
+    // `compact` changes the ARRANGEMENT and not only which rows exist: the cover's side,
+    // where the rows sit, and the title's alignment all hang off it.
+    readonly property bool compactMode: root.family === "compact"
 
     // --- Which player the card is about -------------------------------------------------
     // The card follows the player that is WORTH SHOWING, not simply the one the controller
@@ -185,98 +198,149 @@ Item {
     // the next time it comes back.
     onCardHiddenChanged: if (root.cardHidden) root.choosing = false
 
-    // The artwork is SQUARE and as wide as the widget: the reference's cover is the card's
-    // width, not a centred square inside a wider card, and at 248 of widget it is also the
-    // only size that leaves room for everything below in a 400-tall card.
-    //
-    // full    card 280x400 -> widget 248x368: 248 (art) + 8 + 20 (title) + 8 + 18 (artist)
-    //   + 8 + 28 (seek row: a 6px rail, 2px gap, 20px times line) + 8 + 17 (transport)
-    //   = 363, which is the whole 368. The seek row's numbers are its real ones: the times
-    //   ride INSIDE that row, they are not a row of their own.
-    // detailed card 280x457 -> widget 248x425: the same 363 plus 8 + 24 (mode + volume)
-    //   plus 8 + 17 (identity) = 420 of 425. The artwork keeps its 248 in both, and the
-    //   difference in height IS the two extra rows — which is what the comment above the
-    //   families promises. It used to declare 280x500, i.e. 468 of widget for 420 of
-    //   content: 48px of empty card below the identity row, on a 500-tall card (measured
-    //   live, and the family-size-preview photographs it). A family is an AMOUNT of
-    //   information and the room that amount needs; a taller box with the same rows in it
-    //   is the taller box with the same rows in it. tests/media-family-fit.py holds both
-    //   numbers: the caret's ink on the artist line, and this card's slack at the bottom.
-    //
-    // Every number above is WIDGET space except the two card sizes: a widget measures the
-    // card minus WidgetFrame's 16px margin per side, so 400 and 457 here are card numbers
-    // and 368 and 425 are what the card hands this tree. Those leaf heights come from font
-    // metrics (a Text's own height), so they are the same with or without a laid-out
-    // window — which matters, because a bare ShellRoot never lays this tree out and every
-    // Row in it then reports height 0.
-    readonly property int artSide: width
+    // The strip opens no chooser: its header plus ONE row of the list is 58px of a 48px
+    // widget, so there is no version of that list that fits, and a list taller than the card
+    // is worse than no list. Two players on the bus are therefore switched from `full` or
+    // `detailed`, or from the dashboard — a card that CANNOT show the pick does not offer it.
+    // Switching a card to `compact` with the list already open closes it.
+    onFamilyChanged: if (root.compactMode) root.choosing = false
 
-    Column {
-        id: body
-        anchors.fill: parent
-        spacing: 8
+    // The artwork is SQUARE. How long that square's side is depends on the family, and it
+    // is the one number the two arrangements do not share:
+    //
+    //   full / detailed: the cover IS the widget's width — the reference's look is a cover
+    //     spanning the card, not a centred square inside a wider card — and at 248 it is
+    //     also the only size that leaves room for everything below in a 400-tall card.
+    //   compact: the strip is 248x48, so a cover as wide as the card would be a letterbox
+    //     of 248x48. The side comes from the HEIGHT there — the strip's own square — and
+    //     the 192 left beside it are the column the title and the transport live in.
+    //
+    // full    card 280x400 -> widget 248x368: 248 (art) + 8 + 22 (title) + 8 + 21 (artist)
+    //   + 8 + 27 (seek row: a 6px rail, 2px gap, the times line) + 8 + 17 (transport)
+    //   = 367 of the 368. The seek row's numbers are its real ones: the times ride INSIDE
+    //   that row, they are not a row of their own.
+    // detailed card 280x457 -> widget 248x425: the same 367 plus 8 + 24 (mode + volume)
+    //   plus 8 + 20 (identity) = 427 of the 425 — 2px past the card, landing inside the
+    //   frame's own 16px margin and therefore invisible on screen. It is the one number here
+    //   that does not fit its own card, and it is left alone rather than nudged by 2px on a
+    //   comment's word: a size that moves should move because a drawing needs the room. The
+    //   artwork keeps its 248 in both, and the difference in height IS the two extra rows —
+    //   which is what the comment above the families promises. It used to declare 280x500,
+    //   i.e. 468 of widget for 420 of content: 48px of empty card below the identity row, on
+    //   a 500-tall card (measured live, and the family-size-preview photographs it). A family
+    //   is an AMOUNT of information and the room that amount needs; a taller box with the
+    //   same rows in it is the taller box with the same rows in it. tests/media-family-fit.py
+    //   holds both numbers: the caret's ink on the artist line, and the card's slack at the
+    //   bottom.
+    // compact card 280x80 -> widget 248x48: 48 of cover, 8 of gap, then a column 192 wide
+    //   holding the title (22) + 8 + the transport (17) = 47, centred on the strip's 48 with
+    //   the odd pixel above. Those two rows ARE the family — the artist line and the seek row
+    //   are not in it — and they fill the strip to ONE pixel of slack, which is the point of
+    //   measuring rather than estimating: a font that grows the title by 2px is exactly what
+    //   tests/media-family-fit.py is there to catch. It measures the cover's side, where the
+    //   column starts, and that nothing of the two rows leaves the card.
+    //
+    // Every number above is WIDGET space except the card sizes: a widget measures the card
+    // minus WidgetFrame's 16px margin per side, so 400, 457 and 80 here are card numbers
+    // and 368, 425 and 48 are what the card hands this tree. The leaf heights — 22, 21, 27,
+    // 17 for the four rows of the reference shape, 24 and 20 for the two `detailed` adds —
+    // are MEASURED, one row at a time, in the card running in the shell, and they are the
+    // reason the totals are odd numbers: a title that measures 22 today measured 20 when this
+    // comment was first written. Treat them as a reading, not a constant, and re-take it
+    // before trusting an arithmetic that hangs off them. They come from font metrics (a
+    // Text's own height), so they are the same with or without a laid-out window — which
+    // matters, because a bare ShellRoot never lays this tree out and every Row in it then
+    // reports height 0.
+    //
+    // A square as tall as the card is right only while the card IS a strip: any card can be
+    // resized by hand, and a compact card grown to 248x300 would ask for a 300px cover in a
+    // 248px width. `Math.min` is what keeps a hand-resized strip sane, and it never fires at
+    // the family's own size, where the height is the smaller side.
+    readonly property int artSide: root.compactMode
+        ? Math.min(root.height, root.width) : width
+
+    // The cover is placed on the card's own surface, not in the column below it: its corner
+    // and its shape are the same in every family (top-left of the widget, a square) and only
+    // its SIDE changes — while a Column would stack the rows UNDER it in `compact` however
+    // small it were told to be.
+    //
+    // Artwork when the player publishes one, a themed tile when it does not: a card
+    // that collapses when the art is missing reads as broken. (mpv hands the cover
+    // over INLINE as a base64 data: URI, so either way this is the URL.)
+    Rectangle {
+        id: art
+        anchors.left: parent.left
+        anchors.top: parent.top
+        // The chooser takes the whole card, so the cover leaves with the rows.
         visible: !root.choosing
+        width: root.artSide
+        height: root.artSide
+        radius: Styling.radius(4)
+        color: Colors.surfaceContainer
+        border.width: 1
+        border.color: Colors.outline
 
-        // Artwork when the player publishes one, a themed tile when it does not: a card
-        // that collapses when the art is missing reads as broken. (mpv hands the cover
-        // over INLINE as a base64 data: URI, so either way this is the URL.)
-        Rectangle {
-            id: art
-            anchors.horizontalCenter: parent.horizontalCenter
-            width: root.artSide
-            height: root.artSide
-            radius: Styling.radius(4)
-            color: Colors.surfaceContainer
-            border.width: 1
-            border.color: Colors.outline
+        Image {
+            id: artImage
+            anchors.fill: parent
+            anchors.margins: 1
+            source: root.artUrl
+            visible: root.artUrl !== "" && status === Image.Ready
+            fillMode: Image.PreserveAspectCrop
+            asynchronous: true
 
-            Image {
-                id: artImage
-                anchors.fill: parent
-                anchors.margins: 1
-                source: root.artUrl
-                visible: root.artUrl !== "" && status === Image.Ready
-                fillMode: Image.PreserveAspectCrop
-                asynchronous: true
-
-                // The cover is CLIPPED to the tile's radius. A Rectangle with `radius` does
-                // NOT clip its children in QML, so without this mask the Image paints its
-                // square corners over the arc: measured on a capture, the tile's rounded
-                // corner did not exist at all and the photo read as a square pasted on a
-                // round card.
-                layer.enabled: true
-                layer.effect: MultiEffect {
-                    maskEnabled: true
-                    maskSource: artMask
-                    maskThresholdMin: 0.5
-                    maskSpreadAtMin: 1.0
-                }
-            }
-
-            // The mask itself: same rect and radius as the image area, never drawn, kept
-            // alive as a texture for the MultiEffect (the shell's own idiom, BarBg.qml).
-            Rectangle {
-                id: artMask
-                anchors.fill: parent
-                anchors.margins: 1
-                radius: Math.max(art.radius - 1, 0)
-                color: "white"
-                visible: false
-                layer.enabled: true
-            }
-
-            Text {
-                anchors.centerIn: parent
-                visible: !artImage.visible
-                text: Icons.note
-                color: root.alpha(Colors.overBackground, 0.45)
-                // Icons.font (Phosphor-Bold), NOT Styling.defaultFont: a glyph drawn with
-                // the UI font renders as tofu, and no text-based check in the suite can
-                // see that.
-                font.family: Icons.font
-                font.pixelSize: Math.round(root.artSide * 0.18)
+            // The cover is CLIPPED to the tile's radius. A Rectangle with `radius` does
+            // NOT clip its children in QML, so without this mask the Image paints its
+            // square corners over the arc: measured on a capture, the tile's rounded
+            // corner did not exist at all and the photo read as a square pasted on a
+            // round card.
+            layer.enabled: true
+            layer.effect: MultiEffect {
+                maskEnabled: true
+                maskSource: artMask
+                maskThresholdMin: 0.5
+                maskSpreadAtMin: 1.0
             }
         }
+
+        // The mask itself: same rect and radius as the image area, never drawn, kept
+        // alive as a texture for the MultiEffect (the shell's own idiom, BarBg.qml).
+        Rectangle {
+            id: artMask
+            anchors.fill: parent
+            anchors.margins: 1
+            radius: Math.max(art.radius - 1, 0)
+            color: "white"
+            visible: false
+            layer.enabled: true
+        }
+
+        Text {
+            anchors.centerIn: parent
+            visible: !artImage.visible
+            text: Icons.note
+            color: root.alpha(Colors.overBackground, 0.45)
+            // Icons.font (Phosphor-Bold), NOT Styling.defaultFont: a glyph drawn with
+            // the UI font renders as tofu, and no text-based check in the suite can
+            // see that.
+            font.family: Icons.font
+            font.pixelSize: Math.round(root.artSide * 0.18)
+        }
+    }
+
+    // Everything else is ONE column, and the family says where it starts and how wide it
+    // is — the arrangement difference in a single place: the card's own column with the
+    // cover above it in `full`/`detailed`, and the column BESIDE the cover in `compact`,
+    // where it is also centred on the strip's height instead of starting at its top edge.
+    // The rows themselves never move: each one simply exists in some families and not in
+    // others, exactly as `detailed` already does with its own two.
+    Column {
+        id: body
+        spacing: 8
+        visible: !root.choosing
+        width: root.compactMode ? parent.width - root.artSide - 8 : parent.width
+        x: root.compactMode ? root.artSide + 8 : 0
+        y: root.compactMode ? Math.round((parent.height - height) / 2) : root.artSide + 8
 
         Text {
             width: parent.width
@@ -286,7 +350,11 @@ Item {
             font.family: Styling.defaultFont
             font.pixelSize: Styling.fontSize(2)
             font.weight: Font.Bold
-            horizontalAlignment: Text.AlignHCenter
+            // The title is the strip's ONLY line of text, so it is also the line that has to
+            // read as one: beside a cover, text centred in a 192px column reads as a card
+            // someone squeezed, and left-aligned it reads as the line it is. Under the cover,
+            // where it has the card's whole width, it stays centred as it always was.
+            horizontalAlignment: root.compactMode ? Text.AlignLeft : Text.AlignHCenter
             elide: Text.ElideRight
         }
 
@@ -295,6 +363,11 @@ Item {
         // would say that a tap here opens a list.
         Row {
             id: artistRow
+            // The one row the strip does not have: beside a 48px cover there is room for the
+            // title and the transport, and an artist line would be a THIRD thing in 48px of
+            // height. (With the artist inside, this family is the calendar's own 280x112
+            // strip — a different drawing, not a taller version of this one.)
+            visible: !root.compactMode
             anchors.horizontalCenter: parent.horizontalCenter
             spacing: 4
 
@@ -357,7 +430,9 @@ Item {
         // publishes none (an idle browser tab, `mpris:length: 0`) simply has no bar.
         Column {
             id: seekRow
-            visible: root.hasTimeline
+            // Not in the strip either: the rail plus its times line is 28px of the 48, and
+            // the strip has 3 left after the title and the transport.
+            visible: root.hasTimeline && !root.compactMode
             width: parent.width
             spacing: 2
 
@@ -496,8 +571,13 @@ Item {
         // the bus the controller's own controls belong to the one it tracks, which is not
         // necessarily the one on screen. (mpv on a single file reports CanGoNext and
         // CanGoPrevious as false, so this row is play/pause alone — correct, not broken.)
+        //
+        // Centred under the cover, and left-aligned under the strip's title so the two share
+        // one edge. Written as `x` and not as an anchor because the Row has to sit in two
+        // different places: a positioner sets its children's `x` but leaves an explicitly
+        // bound one alone (measured), while an anchor cannot be switched off per family.
         Row {
-            anchors.horizontalCenter: parent.horizontalCenter
+            x: root.compactMode ? 0 : Math.round((parent.width - width) / 2)
             spacing: 18
 
             TransportButton {
