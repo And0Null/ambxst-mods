@@ -49,6 +49,9 @@ MOD = HERE.parent
 LAYOUT = {
     "design": "custom",
     "opacity": 0.42,
+    # The card surface, set to the NON-default value on purpose: an expectation that only ever
+    # exercises the default would pass while the menu drew "solid" selected for a glass layout.
+    "background": "solid",
     "widgets": [
         {"type": "clock", "ax": "left", "ox": 40, "ay": "top", "oy": 40,
          "w": 280, "h": 190, "family": "compact", "enabled": True},
@@ -278,8 +281,32 @@ def widget_families():
     return out
 
 
+def surface_options():
+    """The card surface's two options, in the order the MENU lists them.
+
+    Read out of the menu's own source rather than written here, because the expectation below is
+    an index into this list: a reorder in the menu would then show up as a failure instead of
+    silently comparing the wrong button.
+    """
+    src = (MOD / "overlays/modules/widgets/desktopwidgets/WidgetMenu.qml").read_text()
+    # The block between the surface's own comment and the NEXT one: the FamilySwitch is inside,
+    # and `options:` sits after the switch's opening line, so the boundary cannot be the
+    # FamilySwitch token itself.
+    block = src.split("// The card's material")[1].split("// The card surface's OWN")[0]
+    found = re.findall(r"options:\s*\[([^\]]*)\]", block)
+    if not found:
+        raise SystemExit("the card surface's options could not be read out of WidgetMenu.qml")
+    return re.findall(r'"([^"]+)"', found[0])
+
+
 def expected_switches():
-    """What the menu must show for LAYOUT: (options, picked family, visible) per row."""
+    """What the menu must show for LAYOUT: (options, picked family, visible) per row.
+
+    The trailing row is the card-surface switch, a GLOBAL preference that is not per entry, so
+    it cannot come from LAYOUT. It is here because this check is about the menu and the layout
+    file agreeing: a preference switch the menu stopped drawing, or drew in a state the file does
+    not carry, is the same class of bug as a family switch that drifts.
+    """
     fam = service_map() or {}
     out = []
     for e in LAYOUT["widgets"]:
@@ -292,6 +319,17 @@ def expected_switches():
         out.append((fam.get(e["type"], ["full"]), e["family"], False))
         for k in kids:
             out.append((fam.get(k["type"], ["full"]), k["family"], True))
+    # The menu shows LABELS and the file stores the VALUE under each, so the expectation has to
+    # find the label the picked value is drawn with, not the value itself. (The switch is wired
+    # `index === 0 ? "solid" : "glass"` over `["Solid", "Glass"]` — the harness reads the labels
+    # and reuses the same order, so a menu that reordered them fails here instead of quietly
+    # comparing the wrong button.)
+    surface = surface_options()
+    want = LAYOUT.get("background", "glass")
+    picked = next((i for i, label in enumerate(surface) if label.lower() == want), None)
+    if picked is None:
+        raise SystemExit(f"the layout asks for surface {want!r}, which is none of {surface}")
+    out.append((surface, picked, True))
     return out
 
 

@@ -70,7 +70,10 @@ const SCREENS = [[1366, 768], [1920, 1080]];
 const FAMILIES = {
   clock: ["compact", "full", "detailed"],
   weather: ["compact", "full", "detailed"], system: ["compact", "full", "detailed"],
-  calendar: ["full"], group: ["full"],
+  // The calendar HAS a compact tier (the week row, 280x112) and a detailed one (the agenda);
+  // this map said `["full"]` since before either landed, so every design that put the calendar in
+  // a strip was refused by the map rather than by the geometry.
+  calendar: ["compact", "full", "detailed"], group: ["full"],
   media: ["compact", "full", "detailed"],
 };
 

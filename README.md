@@ -497,10 +497,20 @@ The arrangement comes from a **design**, applied in one click from the picker at
 of the menu: `Split` (four cards in the corners — the default), `Rail` (a column plus the
 calendar), `Studio` (one card holding clock, weather and system, plus the calendar),
 `Row` (the same three side by side), `Cluster` (a tight 2x2 block), `Minimal` (clock and
-calendar) and `Center` (a centred pair, top and bottom). Each button draws a real
-miniature of its design — the entries are placed with the same anchor arithmetic the
+calendar), `Center` (a centred pair, top and bottom) and `Now Playing` (the player card
+in `detailed` on the right, the other four in their strips on the left). Each button draws
+a real miniature of its design — the entries are placed with the same anchor arithmetic the
 desktop uses, on a 1920x1080 reference, then scaled down — so a preview cannot show
 something applying the design would not do.
+
+**Every design carries the player card**, as `compact` and in the free band its layout already
+had. A design that does not mention a widget is a design that REMOVES it: applying one rewrites
+the entry list, so a media card added by hand was gone on the next click. The strip is the only
+family that fits a 1366x768 output in all of them — measured per design and per side, the two
+columns' lowest cards leave 0, 39, 79, 135 or 289px, and `full` (400px) reaches only in `Row`
+and `Minimal`, whose tall entries are disabled anyway. `Now Playing` is where `detailed` earns
+its keep: the other four drop to 80px strips, and the 457px the player needs is paid for by the
+cards that no longer want it.
 
 Designs are plain data (`DesktopWidgetsService.designs`), and every one of them has to
 obey rules that are checked against pixels rather than eyeballed:
