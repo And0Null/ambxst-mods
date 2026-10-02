@@ -112,7 +112,14 @@ Item {
     // read and a play button worth pressing — and so does a player that is PLAYING with no
     // tags at all: audio is coming out of it.
     readonly property bool hasSomethingToShow: root.worthShowing(root.player)
-    readonly property bool cardHidden: !root.hasSomethingToShow
+
+    // Staying is the USER's call (`keepWhenIdle`, the switch in the widgets menu). The two
+    // flags below are that one fact read twice — one says whether the card is up, the other
+    // what it draws while it is — so the card can never be up drawing an empty song, nor
+    // hidden while idle is true.
+    readonly property bool staysWhenIdle: DesktopWidgetsService.keepWhenIdle
+    readonly property bool idle: root.staysWhenIdle && !root.hasSomethingToShow
+    readonly property bool cardHidden: !root.hasSomethingToShow && !root.staysWhenIdle
 
     // --- The chooser ---------------------------------------------------------------------
     // A MODE of this card, not a second surface: these card rectangles are the only region
@@ -259,6 +266,26 @@ Item {
     readonly property int artSide: root.compactMode
         ? Math.min(root.height, root.width) : width
 
+    // The cover's corner. `Styling.radius(4)` is the theme's radius — 20px here
+    // (`Config.roundness` 16, plus 4) — and it is meant for the 248 tile of the tall
+    // families, where it is 8% of the side and reads as a rounded square. The strip's tile
+    // is 48, and the same 20px there eats two fifths of it: measured on the capture, the
+    // strip's cover came out looking like a CIRCLE, which is not what a cover looks like and
+    // not what the other two families draw. Same radius in PROPORTION for the strip, then —
+    // and the same expression is what keeps the theme's hand in it: with roundness at 0 both
+    // tiles are square, and the mask below follows the value either way.
+    readonly property int artRadius: root.compactMode
+        ? Math.round(Styling.radius(4) * root.artSide / 248) : Styling.radius(4)
+
+    // The idle line's type size. In the strip it is the title's OWN size, because that card
+    // has one pixel of slack (measured) and cannot give the line more room; in the tall
+    // families it is half again as tall. There the line IS the whole message, and at the
+    // title's 16px under a 248px cover it read as a whisper rather than as the card's status
+    // — measured on the capture and named by the user, which is the only reason the two
+    // families differ here at all.
+    readonly property int idleLineSize: root.compactMode
+        ? Styling.fontSize(2) : Math.round(Styling.fontSize(2) * 1.5)
+
     // The cover is placed on the card's own surface, not in the column below it: its corner
     // and its shape are the same in every family (top-left of the widget, a square) and only
     // its SIDE changes — while a Column would stack the rows UNDER it in `compact` however
@@ -275,7 +302,7 @@ Item {
         visible: !root.choosing
         width: root.artSide
         height: root.artSide
-        radius: Styling.radius(4)
+        radius: root.artRadius
         color: Colors.surfaceContainer
         border.width: 1
         border.color: Colors.outline
@@ -318,13 +345,24 @@ Item {
         Text {
             anchors.centerIn: parent
             visible: !artImage.visible
-            text: Icons.note
-            color: root.alpha(Colors.overBackground, 0.45)
-            // Icons.font (Phosphor-Bold), NOT Styling.defaultFont: a glyph drawn with
-            // the UI font renders as tofu, and no text-based check in the suite can
-            // see that.
-            font.family: Icons.font
-            font.pixelSize: Math.round(root.artSide * 0.18)
+            // The idle card wears a FACE, not the note glyph: a note says "a song lives
+            // here" and this card is up to say the opposite. `-_-` is the SLEEPING one and
+            // not a sad one — nothing is broken, the desktop is just quiet — and it is three
+            // characters instead of five precisely so the tile can spend its width on them:
+            // at the strip's 48px that is a 17px face, while the five-character `(._.)` tried
+            // first came out as specks there (both drawn in this very mono font and compared
+            // side by side). It is TEXT in the card's own mono font — the one its times use —
+            // with plain ASCII, so no codepoint can turn into tofu: that is the risk a
+            // brand-new icon name carries (`Icons.<something-new>`) and why this is not one.
+            // Bold in the idle state on purpose: `-_-` is three HORIZONTAL strokes, so at
+            // 48px it has almost no vertical mass — a 17px regular face measured 9px of ink
+            // in a 48px tile and read as a smudge. The weight, the size and a touch more
+            // contrast are the whole fix; the glyphs themselves cannot get taller.
+            text: root.idle ? "-_-" : Icons.note
+            color: root.alpha(Colors.overBackground, root.idle ? 0.72 : 0.45)
+            font.family: root.idle ? Config.theme.monoFont : Icons.font
+            font.weight: root.idle ? Font.Bold : Font.Normal
+            font.pixelSize: Math.round(root.artSide * (root.idle ? 0.40 : 0.18))
         }
     }
 
@@ -345,11 +383,17 @@ Item {
         Text {
             width: parent.width
             textFormat: Text.PlainText
-            text: root.titleText
-            color: Colors.overBackground
+            // What the face says, in words, in `idleLineSize` — the title's size in the
+            // strip, half again as tall in the tall families. NOT bold on purpose: the
+            // title's own weight would make "Nothing playing" read as the name of a track.
+            // A touch brighter than the muted 0.55 first tried: under a 248px cover a dim
+            // label is a label the eye falls past (and the same value in both families keeps
+            // the two states speaking the same language).
+            text: root.idle ? "Nothing playing" : root.titleText
+            color: root.idle ? root.alpha(Colors.overBackground, 0.65) : Colors.overBackground
             font.family: Styling.defaultFont
-            font.pixelSize: Styling.fontSize(2)
-            font.weight: Font.Bold
+            font.pixelSize: root.idle ? root.idleLineSize : Styling.fontSize(2)
+            font.weight: root.idle ? Font.Normal : Font.Bold
             // The title is the strip's ONLY line of text, so it is also the line that has to
             // read as one: beside a cover, text centred in a 192px column reads as a card
             // someone squeezed, and left-aligned it reads as the line it is. Under the cover,
@@ -367,7 +411,11 @@ Item {
             // title and the transport, and an artist line would be a THIRD thing in 48px of
             // height. (With the artist inside, this family is the calendar's own 280x112
             // strip — a different drawing, not a taller version of this one.)
-            visible: !root.compactMode
+            // Hidden while idle: an idle card has no artist to name (that is WHY it is
+            // idle), and the row would sit there as 21px of inkless box plus its spacing,
+            // which is the empty-card look this option exists to avoid. The same holds for
+            // the seek row below.
+            visible: !root.compactMode && !root.idle
             anchors.horizontalCenter: parent.horizontalCenter
             spacing: 4
 
@@ -432,7 +480,7 @@ Item {
             id: seekRow
             // Not in the strip either: the rail plus its times line is 28px of the 48, and
             // the strip has 3 left after the title and the transport.
-            visible: root.hasTimeline && !root.compactMode
+            visible: root.hasTimeline && !root.compactMode && !root.idle
             width: parent.width
             spacing: 2
 

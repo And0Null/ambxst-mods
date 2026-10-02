@@ -808,8 +808,77 @@ PanelWindow {
                         }
                     }
 
+                    // A BEHAVIOUR switch, next to the look's own: what the media card does
+                    // while nothing is playing. `setKeepWhenIdle` and not the property, so
+                    // the write is only real on a real toggle (the switch is bound to the
+                    // same value and fires when the file's value lands).
+                    RowLayout {
+                        Layout.fillWidth: true
+
+                        Text {
+                            text: "Keep the media card"
+                            textFormat: Text.PlainText
+                            color: Colors.overBackground
+                            font.family: Config.theme.font
+                            font.pixelSize: Styling.fontSize(0)
+                            Layout.fillWidth: true
+                        }
+
+                        ToggleSwitch {
+                            checked: DesktopWidgetsService.keepWhenIdle
+                            onToggled: DesktopWidgetsService.setKeepWhenIdle(checked)
+                        }
+                    }
+
+                    Text {
+                        text: "Off: the player card leaves the desktop while nothing is playing. "
+                              + "On: it stays and says so on its cover, so the layout never moves."
+                        textFormat: Text.PlainText
+                        color: Colors.overSurfaceVariant
+                        font.family: Config.theme.font
+                        font.pixelSize: Styling.fontSize(-1)
+                        wrapMode: Text.WordWrap
+                        Layout.fillWidth: true
+                    }
+
                     Text {
                         text: "Drag the widgets on your desktop, then click Done."
+                        textFormat: Text.PlainText
+                        color: Colors.overSurfaceVariant
+                        font.family: Config.theme.font
+                        font.pixelSize: Styling.fontSize(-1)
+                        wrapMode: Text.WordWrap
+                        Layout.fillWidth: true
+                    }
+
+                    // The card's material: two options and no more, and the pick is live —
+                    // the frames read the service, so a switch here repaints the desktop
+                    // with no restart and nothing to reload.
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 8
+
+                        Text {
+                            text: "Card surface"
+                            textFormat: Text.PlainText
+                            color: Colors.overBackground
+                            font.family: Config.theme.font
+                            font.pixelSize: Styling.fontSize(0)
+                            Layout.fillWidth: true
+                        }
+
+                        FamilySwitch {
+                            options: ["Solid", "Glass"]
+                            currentIndex: DesktopWidgetsService.background === "solid" ? 0 : 1
+                            onPicked: index => DesktopWidgetsService.setBackground(
+                                index === 0 ? "solid" : "glass")
+                        }
+                    }
+
+                    Text {
+                        text: "Solid: one flat colour, nothing of the wallpaper showing. "
+                              + "Glass: the translucent card the wallpaper blurs behind it, at "
+                              + "the opacity below."
                         textFormat: Text.PlainText
                         color: Colors.overSurfaceVariant
                         font.family: Config.theme.font
@@ -821,8 +890,11 @@ PanelWindow {
                     // Labelled: a bare slider in a menu says nothing about what it changes.
                     // This is the card's OWN opacity — how much of the wallpaper shows
                     // through the glass — not the theme's color, which comes from the
-                    // shell palette (colors.json / matugen).
+                    // shell palette (colors.json / matugen). Hidden in `solid`, where there
+                    // is no glass to see through: a control that does nothing is a control
+                    // that lies about what the mode does.
                     ColumnLayout {
+                        visible: DesktopWidgetsService.background !== "solid"
                         Layout.fillWidth: true
                         spacing: 2
 

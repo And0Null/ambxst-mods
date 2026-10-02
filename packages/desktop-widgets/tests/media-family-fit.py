@@ -162,6 +162,44 @@ ShellRoot {
         return null;
     }
 
+    // What the card says about itself while nothing plays: whether it is hidden, whether the
+    // option is on, whether it considers itself idle, and the text of the one line it draws.
+    // Read OFF the widget — never recomputed here — so a flag that no longer drives the
+    // drawing shows up as a mismatch instead of agreeing with a copy of itself.
+    function lineOf(w) {
+        var col = contentColumnOf(w), kids = col ? (col.children || []) : [];
+        for (var i = 0; i < kids.length; i++)
+            if (kids[i].text !== undefined && kids[i].visible)
+                return kids[i].text;
+        return "(none)";
+    }
+
+    function linePxOf(w) {
+        var col = contentColumnOf(w), kids = col ? (col.children || []) : [];
+        for (var i = 0; i < kids.length; i++)
+            if (kids[i].text !== undefined && kids[i].visible)
+                return String(Math.round(kids[i].font.pixelSize));
+        return "0";
+    }
+
+    function faceOf(w) {
+        var cov = coverOf(w);
+        if (!cov)
+            return "(no cover)";
+        var kids = cov.children || [];
+        for (var i = 0; i < kids.length; i++)
+            if (kids[i].text !== undefined)
+                return JSON.stringify(String(kids[i].text)) + " in " + kids[i].font.family
+                       + " at " + Math.round(kids[i].font.pixelSize) + "px";
+        return "(no glyph)";
+    }
+
+    function idleLine(w) {
+        return "state=" + (w.cardHidden ? "hidden" : "shown") + "/keep=" + w.staysWhenIdle
+               + "/idle=" + w.idle + "/line=" + JSON.stringify(String(root.lineOf(w)))
+               + "/linepx=" + root.linePxOf(w);
+    }
+
     function contentColumnOf(w) {
         var kids = w.children || [];
         for (var i = 0; i < kids.length; i++) {
@@ -258,6 +296,10 @@ ShellRoot {
         l.push("compact artist row "
                + (caretRow ? (caretRow.visible ? "DRAWN" : "hidden") : "absent"));
         l.push("compact seek row " + (seekDrawn ? "DRAWN" : "hidden"));
+        // The idle switch, read FIRST in its default (off) — which is the control for the
+        // reading that follows: off has to hide the card, on has to show it saying so.
+        l.push("idle-off: compact " + root.idleLine(cmp) + " | full " + root.idleLine(full));
+        l.push("face-off: " + root.faceOf(cmp));
         var row = artistRowOf(full);
         if (!row) {
             l.push("FATAL: the artist row (the one carrying the caret) was not found");
@@ -279,6 +321,9 @@ ShellRoot {
                 k.visible = true;
         }
         root.log = l;
+        // Fingerprints, faces and cards are captured in the PLAYING state, so the switch is
+        // flipped after the grabs are chained and not before.
+        idleTimer.start();
         save(row, "artist", function () {
             save(full, "full", function () {
                 save(det, "detailed", function () {
@@ -289,6 +334,27 @@ ShellRoot {
         // The watchdog: a grab that never calls back must still produce a log, or the run
         // ends with an empty file and the failure looks like a missing harness.
         watchdog.start();
+    }
+
+    // The option is flipped in TWO steps: a property write is not visible to the bindings
+    // that read it in the same call stack, so the second read needs a turn of the loop.
+    Timer {
+        id: idleTimer
+        interval: 500
+        onTriggered: {
+            DesktopWidgetsService.keepWhenIdle = true;
+            idleConfirm.start();
+        }
+    }
+
+    Timer {
+        id: idleConfirm
+        interval: 400
+        onTriggered: {
+            root.log.push("idle-on: compact " + root.idleLine(cmp) + " | full "
+                          + root.idleLine(full));
+            root.log.push("face-on: " + root.faceOf(cmp));
+        }
     }
 
     Timer {
@@ -490,6 +556,75 @@ def check_strip_ink(png, want_h):
     return first, why
 
 
+def idle_facts(log):
+    """The idle switch's two readings, and the face on the cover of each."""
+    out = {}
+    for line in log.splitlines():
+        m = re.match(r"idle-(off|on): (.*)", line)
+        if m:
+            cards = {}
+            for part in m.group(2).split(" | "):
+                name, _, rest = part.partition(" ")
+                cards[name] = dict(kv.split("=", 1) for kv in rest.split("/"))
+            out[m.group(1)] = cards
+        m = re.match(r"face-(off|on): (.*)", line)
+        if m:
+            out.setdefault("face", {})[m.group(1)] = m.group(2)
+    return out
+
+
+def check_idle(log):
+    """Staying is the user's call: off hides the card, on shows it saying so.
+
+    The two readings are one check because the second is worthless without the first: an
+    option that shows an idle card while the default ALSO shows one is a switch wired to
+    nothing. Both are read out of the widget's own flags and its own line of text.
+    """
+    facts = idle_facts(log)
+    if "off" not in facts or "on" not in facts:
+        return None, ["the idle switch was never read (the probe did not get that far)"]
+    off, on = facts["off"], facts["on"]
+    why = []
+    for name in ("compact", "full"):
+        if name not in off or name not in on:
+            why.append(f"the {name} card was not reported on both readings")
+            continue
+        if off[name].get("keep") != "false" or on[name].get("keep") != "true":
+            why.append(f"{name}: the option reads keep={off[name].get('keep')} with the mod's "
+                       f"default and keep={on[name].get('keep')} after the switch was flipped "
+                       f"— the file's field is not reaching the card")
+        if off[name].get("state") != "hidden":
+            why.append(f"{name}: with the option OFF the card is {off[name].get('state')} with "
+                       f"nothing on the bus; off is the behaviour that shipped, and a card "
+                       f"that stays anyway makes the switch decoration")
+        if on[name].get("state") != "shown":
+            why.append(f"{name}: with the option ON the card is still {on[name].get('state')} "
+                       f"while nothing plays")
+        if on[name].get("idle") != "true" or off[name].get("idle") != "false":
+            why.append(f"{name}: idle reads {off[name].get('idle')} off / {on[name].get('idle')} "
+                       f"on — it has to follow the option AND the absence of a song")
+        if on[name].get("linepx") != ("16" if name == "compact" else "24"):
+            why.append(f"{name}: the idle line is {on[name].get('linepx')}px; the strip keeps "
+                       f"the title's 16 and the tall families draw it at 24 (the title's half "
+                       f"again), which is what makes the line read as the card's status")
+        if on[name].get("line") != '"Nothing playing"':
+            why.append(f"{name}: the idle card draws {on[name].get('line')} where the title "
+                       f"goes; an idle card with an empty line is the empty box this option "
+                       f"exists to avoid")
+    face = facts.get("face", {})
+    if "-_-" in face.get("off", ""):
+        why.append("the note glyph is replaced by the face even with the option OFF: the "
+                   "playing/placeholder look must not change for anyone who leaves it off")
+    if "-_-" not in face.get("on", ""):
+        why.append(f"the idle cover draws {face.get('on', '(nothing reported)')}; it has to "
+                   f"be the sleeping face")
+    elif "at 19px" not in face.get("on", ""):
+        why.append(f"the idle face is {face.get('on')}: in the 48px strip it is 17px, which "
+                   f"is what makes three characters read as a face at that size")
+    return (f"off: hidden | on: shown, {on.get('compact', {}).get('line')}, "
+            f"{face.get('on', '?')[:38]}", why)
+
+
 def check_qml(stderr):
     """This card must load clean: no ReferenceError from a missing import."""
     hits = [l for l in stderr.splitlines()
@@ -604,6 +739,7 @@ def main():
              if "detailed" in urls
              else (None, ["the detailed card's grab never landed"])),
             ("strip", lambda: check_strip(text)),
+            ("idle", lambda: check_idle(text)),
             ("strip-ink", lambda: check_strip_ink(urls["compact"], sizes["compact"][1] - INSET * 2)
              if "compact" in urls else (None, ["the strip's grab never landed"])),
             ("qml-clean", lambda: check_qml(p.stderr)),

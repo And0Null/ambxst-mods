@@ -136,13 +136,14 @@ clear message until you install it.
 
 ---
 
-## desktop-widgets — `and0null.desktop-widgets` (v1.18.2)
+## desktop-widgets — `and0null.desktop-widgets` (v1.19.0)
 
 Widgets on your desktop, not in the dashboard: a clock, a month calendar, a weather
-card and a system card (CPU/temp/RAM, and GPU when detected) floating in liquid-glass
-cards on an input-transparent **Bottom layer** — above the wallpaper, under every
-window, like desktop icons. They step aside while a fullscreen window owns the
-output, and a management menu adds/removes widgets, sets their opacity and toggles a
+card, a system card (CPU/temp/RAM, and GPU when detected) and a player card for whatever
+the MPRIS bus is playing, floating in liquid-glass cards on an input-transparent **Bottom
+layer** — above the wallpaper, under every window, like desktop icons. They step aside while
+a fullscreen window owns the output, and a management menu adds/removes widgets, picks each
+card's material (liquid glass or a flat solid colour), sets their opacity and toggles a
 drag-to-move edit mode.
 
 ```bash
@@ -152,8 +153,9 @@ ambxst mods enable and0null.desktop-widgets
 
 ### Screenshots
 
-All four widgets, in two of their three content families — the large cards are `full`, the
-row below them is `compact` (the calendar's compact is the week strip, not a squeezed month):
+Four of the five widgets, in two of their three content families — the large cards are
+`full`, the row below them is `compact` (the calendar's compact is the week strip, not a
+squeezed month). The player card (`media`) is not in this capture yet:
 
 ![Desktop widgets, in their families](screenshots/desktop-widgets-families.png)
 
@@ -171,6 +173,11 @@ where it is, and the colour and name of the calendar it comes from:
 - `weather` — current condition, temperature, wind and sunrise/sunset from
   Ambxst's WeatherService.
 - `system` — CPU (with temperature), RAM and GPU usage as labelled bars.
+- `media` — what a player on the MPRIS bus is playing: cover, title, artist, a seek bar with
+  the elapsed and total times, and the transport, plus — as `detailed` — a shuffle/loop
+  cycle, a volume slider and the player's own name. With more than one player open, the
+  artist line becomes a **chooser**. It reads Ambxst's own `MprisController`, so nothing runs
+  while nothing plays. See *The player card* below.
 
 ### The calendar is the dashboard's, given a size
 
@@ -317,6 +324,42 @@ cell follows that same value — the outline around the day is the state, not a 
 it. While **edit mode** is on a press on a card is a drag, so the cells stop taking taps and
 that press moves the card instead.
 
+### The player card
+
+`media` draws whatever is playing on the **MPRIS** bus, through the shell's own
+`MprisController`: nothing to configure, no provider-specific integration, and nothing
+running while nothing plays. Every row comes from the player's own metadata and
+capabilities, and each one disappears when the player cannot supply it:
+
+| row | from | when it is not there |
+|---|---|---|
+| cover | `trackArtUrl` | a themed tile with a note glyph — an idle card wears a sleeping face instead |
+| title | `trackTitle` | the card leaves (or says so, see below) |
+| artist | `trackArtist` | the row is not drawn |
+| seek bar + times | `position` / `length` | no bar at all: an idle browser tab reports `length: 0` |
+| transport | `canGoPrevious` / `canTogglePlaying` / `canGoNext` | only the buttons this player allows — mpv on a single file is play/pause alone, correctly |
+| shuffle + loop, volume, player name | `MprisController`'s capability flags, `player.volume = v`, `player.identity` | the rows do not exist outside `detailed` |
+
+With **more than one player open**, the artist line turns into the **chooser**: a caret, a
+hover, and a tap opens one row per player with the active one ringed. The pick is the shell's
+(`MprisController.setActivePlayer`), so it survives a restart and agrees with the notch, the
+dashboard and the lock screen.
+
+**While nothing is playing** the card leaves the desktop, so no empty card sits over the
+wallpaper, and it leaves without moving anything else: every card sits at its own anchor. If
+you would rather keep the frame — a desktop that does not reflow when a song ends —
+**Keep the media card** in the menu leaves it up, and then it says so: a muted *Nothing
+playing* line and a sleeping `-_-` face on the cover, with the artist and seek rows dropped.
+The strip says it at its title's size; the tall families say it half again as large, because
+there the line is the whole message. Switching a card to `compact` with the chooser open
+closes it, and `compact` never offers one: its header plus one row of the list is taller than
+the card.
+
+The three families are amounts of information, not sizes of the same drawing: `full` is the
+reference shape, `detailed` adds the CONTROLS, and `compact` is the only one that changes the
+ARRANGEMENT — the cover stops being the card's width and becomes the strip's own square, with
+the title and the transport beside it.
+
 ### Layout file
 
 The layout lives in `~/.config/ambxst/desktop-widgets.json`. A card's position is an
@@ -330,6 +373,8 @@ widget (with its position) hidden instead of deleted:
 {
     "design": "custom",
     "opacity": 0.42,
+    "keepWhenIdle": false,
+    "background": "glass",
     "widgets": [
         { "type": "clock", "ax": "left", "ox": 57, "ay": "top", "oy": 88, "w": 280, "h": 190, "enabled": true, "family": "full" },
         { "type": "calendar", "ax": "center", "ox": 0, "ay": "bottom", "oy": 100, "w": 360, "h": 360, "enabled": true },
@@ -351,6 +396,15 @@ layout came from, or `custom` once it has been edited by hand. A file that still
 screen *fractions* (`x`/`y`) is converted once, using the biggest connected output as the
 reference, so the placement you already had is preserved; the first change you make
 rewrites the file in the new shape.
+
+`opacity` is the card's OWN alpha (0.3..1) — how much of the wallpaper shows through the
+glass — and `background` picks the material: `glass` (the translucent card the compositor
+blurs behind it, and the default) or `solid` (one flat colour from the theme, with nothing of
+the wallpaper in it; the opacity is not used there, and the menu hides that slider while the
+mode is on). `keepWhenIdle` is the player card's own preference, described under *The player
+card*: `false`, the default, is the card leaving while nothing plays. All three are top-level
+because they are preferences about the cards rather than about one card, and a file written
+before they existed reads as `glass` / `false`, so an existing layout keeps the look it had.
 
 The menu and the drag flow write every change back through the service (debounced
 during drags, saved on drag end). A drop stores the nearest edge on each axis, keeping
@@ -477,6 +531,8 @@ itself proves nothing:
 | the sources file through the menu: opening the menu must write nothing, a real edit must write, a duplicate must be refused, and an **unparseable file must never be overwritten** | `python3 tests/calendar-menu-writes.py` |
 | the menu's shape **and that nothing in it is clipped**: the columns it picks per real screen, the width that implies, the height it is allowed, how far the add-widget row sits from the list's own Flickable (2 means it is back inside the region that clips), and — from a capture of the live panel — the add-widget row as **painted** (a full list used to slice its bottom edge off, 26px of button drawn as 20) — with the constants **read out of the shipped QML** | `python3 tests/desktop-widgets-menu-geometry.py` |
 | the content-family selector: the tiers the menu offers are the ones the widget QMLs draw, the switches sit on the file's families (group children included, unknown families offered nothing), a pick on an option writes through the control's own signal, an out-of-range index writes nothing, the size each family is applied at is the one the widget's header declares (both tables read back out of the sources) and clears the widget's own gate, a pick **shrinks** as well as grows and doing it twice does not move the card twice, and the calendar's minimal tier is a week: the panel, asked at that card's inner size, draws **one** row of days that starts on a Monday and holds today, with its letters and without the title | `python3 tests/widget-family-menu.py` |
+| the player card, measured on the card the shell runs: the strip's arrangement (the cover's side, where the column starts, which of the six rows are drawn), the **idle switch with its control** (off hides the card, on shows it saying *Nothing playing* behind the sleeping face, at the size each family declares), and the card loading clean | `python3 tests/media-family-fit.py --repo` |
+| every card in both of its families photographed on a headless output — glass and solid (`--solid`), playing and idle (`--idle`) — with a throwaway layout, restored byte-exact | `python3 tests/family-size-preview.py [--idle] [--solid]` |
 | a day on a tap: three fixtures through the same panel and the same surface the shell ships — a day holding five events from three calendars (two of them overlapping, one duplicate merged out by UID), a day with nothing that says so — the ring following the service's day in the **month grid and in the week strip**, the tap's state machine (a second tap closes, and clearing empties it), and the day's label and times read as text; the cell→date formula is asked of the shipped panel and compared with the real date, and a copy of the panel with the cells off by one day plus a service with the toggle removed fails it | `python3 tests/calendar-day-detail.py` |
 | the day detail photographed on a headless output, in its own `XDG_CONFIG_HOME`: a day with five events from three calendars, a day that says it has none, and the ring on a cell that is not today — on the output the probe really drew on, with the surface confirmed in Hyprland's layer list | `python3 tests/day-detail-preview.py` |
 | the mod's patches, applied through the shell's own algorithm (`--check`, then `--3way`, then keeping both sides of an added-vs-added conflict) on every Ambxst release inside the declared range — on its own, behind a foreign bar button block, and behind lan-share's real bar patch — and the shell left carrying nothing this mod does not ship | `../extras/mod-composition-check.sh .` |
