@@ -189,6 +189,67 @@ Singleton {
         return best ? { w: best.width, h: best.height } : { w: 1920, h: 1080 };
     }
 
+    // --- Which cards sit on top of each other -------------------------------------------
+    // The screen clamp (WidgetLayer) only keeps a card ON the screen; nothing anywhere
+    // notices that two cards are drawn on the same pixels, so a drag can leave a card
+    // covering another and the layout file records the result as if it were fine. Measured on
+    // the user's own layout: the media strip dragged to `oy: 348` overlaps the weather card by
+    // 48px on the 1366x768 output and by 360px on the 1920x1080 one — and the same `oy` is a
+    // healthy 40px from the edge in a design, because `oy` is a DISTANCE and the two screens
+    // are 312px apart in height. A number alone cannot say whether a card is badly placed; only
+    // the rectangles can, and only per screen.
+    //
+    // So the model asks the geometry: for every visible entry, the indices it covers on a given
+    // output. A group counts as the box it occupies (a child cannot be dragged out of it), and
+    // hidden entries and group children are skipped — a disabled card is not "overlapping"
+    // anything, it is not drawn. Overlap needs REAL area: the two rectangles must cross on both
+    // axes, and touching edges are not a collision (cards are meant to sit side by side).
+    // The screen-edge slack the LAYER clamps with (WidgetLayer.edgeMargin, 8). Declared here as
+    // its own number on purpose: the service is imported by the layer, not the other way round,
+    // so reading the layer's property from here would be a dependency backwards. A card within
+    // that slack of the edge is what the clamp would allow, so it counts as on-screen and is
+    // judged here like any other; a card further out is the clamp's business, not this check's.
+    readonly property int edgeMargin: 8
+
+    function overlapPairs(W, H) {
+        var rects = [];
+        for (var i = 0; i < widgets.length; i++) {
+            var e = widgets[i];
+            if (e.enabled === false)
+                continue;
+            var r = root.pixelRect(e, W, H);
+            if (r.x < -root.edgeMargin || r.y < -root.edgeMargin
+                    || r.x + r.w > W + root.edgeMargin || r.y + r.h > H + root.edgeMargin)
+                continue;                       // off-screen: the clamp's business, not this
+            rects.push({ i: i, type: e.type, r: r });
+        }
+        var pairs = [];
+        for (var a = 0; a < rects.length; a++) {
+            for (var b = a + 1; b < rects.length; b++) {
+                var ra = rects[a].r, rb = rects[b].r;
+                var ox = Math.min(ra.x + ra.w, rb.x + rb.w) - Math.max(ra.x, rb.x);
+                var oy = Math.min(ra.y + ra.h, rb.y + rb.h) - Math.max(ra.y, rb.y);
+                if (ox > 0 && oy > 0)
+                    pairs.push({ a: rects[a].i, b: rects[b].i, w: ox, h: oy });
+            }
+        }
+        return pairs;
+    }
+
+    // The entries that overlap SOMETHING on this output, as a map index -> true, or {} when the
+    // layout is clean. The menu asks per screen it is drawn on, so a card that is fine on the
+    // monitor and stacked on the laptop is flagged on the laptop only — the same rectangle maths
+    // the layer uses, read through the same `pixelRect`.
+    function overlappingEntries(W, H) {
+        var out = {};
+        var pairs = root.overlapPairs(W, H);
+        for (var i = 0; i < pairs.length; i++) {
+            out[pairs[i].a] = true;
+            out[pairs[i].b] = true;
+        }
+        return out;
+    }
+
     // Which side of the screen a card sticks to, on ONE axis: the nearest edge.
     // A card parked in the dead zone (half a card wide, around the middle) keeps
     // the side it already had, so nudging a centred card cannot flip its anchor

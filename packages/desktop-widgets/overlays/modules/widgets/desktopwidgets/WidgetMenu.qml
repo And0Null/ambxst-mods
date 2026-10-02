@@ -191,6 +191,20 @@ PanelWindow {
     readonly property int shapeThreeHeight: Math.max(widgetsColumn.implicitHeight,
                                                      Math.max(calendarsColumn.implicitHeight,
                                                               settingsColumn.implicitHeight))
+    // The indices of the cards that share pixels with another one ON THIS SCREEN, recomputed
+    // from the layout and the screen's own size. Not a property of the model: the same entries
+    // can be clean on one output and stacked on another, so the answer belongs to the screen the
+    // menu is on — and the menu is drawn per screen, which is what makes asking here correct.
+    // `widgets` changing (a drag, a family pick, a design) re-asks; the screen cannot change
+    // under one instance of the menu.
+    readonly property var overlappedHere: {
+        var map = DesktopWidgetsService.overlappingEntries(root.screen.width, root.screen.height);
+        var out = [];
+        for (var k in map)
+            out.push(parseInt(k));
+        return out;
+    }
+
     // Row pitch of each list, measured on the running shell: a widget row is 40px, a
     // calendar row 42px. A cap expressed in ROWS rather than in pixels is what keeps a
     // change from slicing a row in half at the boundary.
@@ -467,6 +481,18 @@ PanelWindow {
 
                                     readonly property bool isGroup: !!(modelData.children && modelData.children.length > 0)
 
+                                    // Does this card share pixels with another one, ON THE SCREEN
+                                    // THIS MENU IS ON? Not a warning about the file: the same
+                                    // `oy` can be healthy on the 1920x1080 monitor and land on top
+                                    // of another card on the 1366x768 panel, because the offset is
+                                    // a DISTANCE and the two outputs are 312px apart in height. So
+                                    // it is asked of the rectangles, per screen, through the
+                                    // service's own `pixelRect` arithmetic. The layer clamps a
+                                    // card back onto the screen but never notices a card drawn
+                                    // over another one, so this is the only place that says so.
+                                    readonly property bool overlapped:
+                                        root.overlappedHere.indexOf(widgetRow.index) >= 0
+
                                     Layout.fillWidth: true
                                     spacing: 4
 
@@ -478,7 +504,14 @@ PanelWindow {
                                             textFormat: Text.PlainText
                                             text: (root.widgetName(widgetRow.modelData.type)
                                                 + (widgetRow.isGroup ? " (group)" : ""))
-                                            color: Colors.overBackground
+                                            // A card that is drawn over another one names itself in
+                                            // the error colour, so the row that needs a drag is
+                                            // findable without counting pixels. The NAME, not the
+                                            // row: the family switch and the trash button keep
+                                            // their own colours, so nothing else in the row lies
+                                            // about being clickable.
+                                            color: widgetRow.overlapped ? Colors.error
+                                                : Colors.overBackground
                                             font.family: Config.theme.font
                                             font.pixelSize: Styling.fontSize(0)
                                             elide: Text.ElideRight
@@ -554,6 +587,25 @@ PanelWindow {
                             }
 
                         }
+                    }
+
+                    // What the red names mean, and only when something is red: a card can be
+                    // drawn over another one without the layout file being wrong, because the
+                    // offsets are distances and every output is a different size. Said once, in
+                    // place, instead of a tooltip nobody opens.
+                    Text {
+                        visible: root.overlappedHere.length > 0
+                        text: root.overlappedHere.length === 1
+                            ? "1 card is drawn over another one on this screen. Drag it clear, "
+                              + "or apply a design."
+                            : root.overlappedHere.length + " cards are drawn over another one "
+                              + "on this screen. Drag them clear, or apply a design."
+                        textFormat: Text.PlainText
+                        color: Colors.error
+                        font.family: Config.theme.font
+                        font.pixelSize: Styling.fontSize(-1)
+                        wrapMode: Text.WordWrap
+                        Layout.fillWidth: true
                     }
 
                     // The list stops drawing past the cap, and says how many rows are out of
