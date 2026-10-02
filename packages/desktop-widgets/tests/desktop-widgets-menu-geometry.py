@@ -108,8 +108,10 @@ ShellRoot {
             screen: modelData
             Component.onCompleted: root.lines.push(JSON.stringify({
                 name: modelData.name, height: modelData.height, width: modelData.width,
-                columns: menuColumns, two: twoColumns, panelWidth: implicitWidth,
-                maxHeight: maxMenuHeight, rows: maxSourceRows, entries: CalendarEventsService.entries.length,
+                columns: menuColumns, two: twoColumns, three: threeColumns, panelWidth: implicitWidth,
+                maxHeight: maxMenuHeight, bar: barClearance, dock: dockClearance,
+                shapeTwo: shapeTwoHeight, shapeThree: shapeThreeHeight,
+                rows: maxSourceRows, entries: CalendarEventsService.entries.length,
                 addRowFlickables: flickableDepth(findByLabel(menu.contentItem, "Weather"))
             }))
         }
@@ -283,23 +285,33 @@ def main():
     if not shapes:
         sys.exit("the probe produced nothing - is a shell generation installed?")
 
-    two_panel = k["width"] * 2 + k["gap"] + 32
-    one_panel = k["width"] + 32
+    def panel_width(cols):
+        return k["width"] * cols + k["gap"] * (cols - 1) + 32
+
     for s in sorted(shapes, key=lambda s: s["height"]):
-        fits = s["height"] - 24
-        expect_two = s["width"] >= (k["width"] * 2 + k["gap"] + 24)
+        # The shape is RE-DERIVED from the room, not from the width alone: one column on a screen
+        # too narrow for two, two columns when they fit the height, and THREE when the two-column
+        # stack does not fit while the side-by-side one does. A rule the harness only recorded
+        # would pass happily while the panel was 162px too tall for the user's own output.
+        room = max(240, s["height"] - s["bar"] - s["dock"] - 24)
+        want = 1
+        if s["width"] >= (k["width"] * 2 + k["gap"] + 24):
+            want = 2
+            if (s["width"] >= (k["width"] * 3 + k["gap"] * 2 + 24)
+                    and s["shapeTwo"] + 32 > room and s["shapeThree"] + 32 <= room):
+                want = 3
+        want_width = panel_width(want)
         ok, why = True, []
-        if s["two"] != expect_two:
-            ok, why = False, why + [f"picked {'two columns' if s['two'] else 'one column'}; "
-                                    f"at {s['width']}px wide it should be "
-                                    f"{'two (the horizontal menu fits)' if expect_two else 'one (too narrow for two)'}"]
-        if s["columns"] != (2 if expect_two else 1):
-            ok, why = False, why + [f"menuColumns={s['columns']}"]
-        want_width = two_panel if expect_two else one_panel
+        if s["columns"] != want:
+            ok, why = False, why + [f"menuColumns={s['columns']}, and the room asks for {want}: "
+                                    f"{s['width']}px wide, two columns need {s['shapeTwo'] + 32}px "
+                                    f"of height, three need {s['shapeThree'] + 32}, the room is "
+                                    f"{room}"]
         if s["panelWidth"] != want_width:
             ok, why = False, why + [f"panel width {s['panelWidth']}, expected {want_width}"]
-        if s["maxHeight"] != max(240, s["height"] - 24):
-            ok, why = False, why + [f"max height {s['maxHeight']} on a {s['height']}px screen"]
+        if s["maxHeight"] != room:
+            ok, why = False, why + [f"max height {s['maxHeight']} on a {s['height']}px screen "
+                                    f"with a {s['bar']}px bar and a {s['dock']}px dock"]
         if s["rows"] != k["rows"]:
             ok, why = False, why + [f"draws {s['rows']} calendar rows"]
         # 1 = only the menu's own outer Flickable: outside the widget list, so unclippable.
@@ -307,8 +319,9 @@ def main():
             ok, why = False, why + [f"the add-widget row has {s['addRowFlickables']} Flickables "
                                     f"above it; 2 means it is back inside the clipped list"]
         print(f"[{'PASS' if ok else 'FAIL'}] {s['name']} ({s['width']}x{s['height']}): "
-              f"{'two columns' if expect_two else 'one column'}, panel {want_width}px, "
-              f"cap {s['maxHeight']}px, rows {s['rows']}")
+              f"{want} column(s), panel {want_width}px, cap {room}px, rows {s['rows']}"
+              + (f"  [two-column shape {s['shapeTwo'] + 32}px, three {s['shapeThree'] + 32}px]"
+                 if want == 3 else ""))
         for w in why:
             print(f"        {w}")
         if not ok:
@@ -316,10 +329,10 @@ def main():
 
     # The horizontal shape is the point of the design: it has to fit the SHORTEST screen.
     shortest = min(shapes, key=lambda s: s["height"])
-    if shortest["two"]:
-        worst = max(240, shortest["height"] - 24)
-        print(f"        {shortest['name']} allows a {worst}px panel; the horizontal menu is "
-              f"{k['widgetRows']} widget rows plus {k['rows']} calendar rows")
+    room = max(240, shortest["height"] - shortest["bar"] - shortest["dock"] - 24)
+    print(f"        {shortest['name']}: the room between the bar and the dock is {room}px; the "
+          f"two-column shape needs {shortest['shapeTwo'] + 32}px and the three-column one "
+          f"{shortest['shapeThree'] + 32}px, so it draws {shortest['columns']} column(s)")
 
     # The live numbers: the box Hyprland reports, and the add-widget row as painted.
     pid = shell_pid()
@@ -332,19 +345,20 @@ def main():
             failures.append("live")
             print("[FAIL] the menu could not be opened through IPC")
         else:
-            two = opened["w"] == two_panel
-            if not two and opened["w"] != one_panel:
+            cols = next((c for c in (3, 2, 1) if opened["w"] == panel_width(c)), None)
+            live = next((s for s in shapes if s["name"] == opened["monitor"]), None)
+            if cols is None or live is None:
                 failures.append("live")
-                print(f"[FAIL] the live panel is {opened['w']}px wide, which is neither shape")
+                print(f"[FAIL] the live panel is {opened['w']}px wide on {opened['monitor']}, "
+                      f"which is no shape for that screen")
             else:
-                cap = max(240, next(s["height"] for s in shapes if s["two"] == two) - 24)
+                cap = max(240, live["height"] - live["bar"] - live["dock"] - 24)
                 ok = opened["h"] <= cap
-                print(f"[{'PASS' if ok else 'FAIL'}] live {opened['monitor']}: "
-                      f"{'two columns' if two else 'one column'}, {opened['w']}x{opened['h']} "
-                      f"(this screen allows {cap}px of height)")
+                print(f"[{'PASS' if ok else 'FAIL'}] live {opened['monitor']}: {cols} column(s), "
+                      f"{opened['w']}x{opened['h']} — the room between its bar and dock is {cap}px")
                 if not ok:
                     failures.append("live")
-                    print("        the menu does not fit - it would clip or scroll")
+                    print("        the menu does not fit the room - it would clip or scroll")
             painted, why = measure_add_row(opened, k)
             if painted is None:
                 print(f"[SKIP] the add-widget row was not measured: {why}")
