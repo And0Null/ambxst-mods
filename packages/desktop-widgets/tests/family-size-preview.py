@@ -1,22 +1,29 @@
 #!/usr/bin/env python3
-"""Capture the four widgets in their tiers side by side on a HEADLESS output.
+"""Capture the widgets in their tiers side by side on a HEADLESS output.
 
-Two rows of the same four cards: the top row at the families the designs place (clock,
-weather and system at `full`, the calendar at `full`), the bottom row at each card's
-`compact` — the tier the menu applies when you pick Minimal, which is also the size that
-tier declares (280x80, and 280x112 for the calendar's week).
+Two rows of the same cards: the top row at the families the designs place (clock, weather and
+system at `full`, the calendar at `full`), the bottom row at each card's `compact` — the tier
+the menu applies when you pick Minimal, which is also the size that tier declares (280x80, and
+280x112 for the calendar's week). The media card rides in BOTH rows, because its `compact` is
+the one family that changes the ARRANGEMENT and not just the number of rows.
 
-    family-size-preview.py            # the two rows above, into the default out dir
+    family-size-preview.py                 # glass, nothing playing
+    family-size-preview.py --idle          # ... with the player card kept up while idle
+    family-size-preview.py --idle --solid  # ... painted instead of glazed
 
-The user's own layout is backed up and restored byte-exact, and nothing is measured on
-their screens: a Bottom-layer surface is invisible under any maximized window there, and
-staging a design on the screen they are working on is exactly what this avoids. The two
-traps this shares with tests/calendar-scale-preview.py (a headless output comes up at
-scale 2; a fixed sleep catches the PREVIOUS layout) are handled the same way: force
-scale 1 and wait for the screen to stop changing.
+The user's own layout is backed up and restored byte-exact — ATOMICALLY, because the shell
+watches that file and a half-read layout is every card gone — and nothing is measured on their
+screens: a Bottom-layer surface is invisible under any maximized window there, and staging a
+design on the screen they are working on is exactly what this avoids. The traps this shares
+with tests/calendar-scale-preview.py (a headless output comes up at scale 2; a fixed sleep
+catches the PREVIOUS layout) are handled the same way: force scale 1 and wait for the screen to
+stop changing. And because a LARGE pixel diff does not prove the layout painted — losing every
+card is a large diff too — `assert_cards` asks the capture for a hard edge inside the first
+card's own box before this run is allowed to report success.
 """
 import json
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -27,7 +34,7 @@ from PIL import Image
 CFG = os.path.expanduser("~/.config/ambxst/desktop-widgets.json")
 OUTDIR = os.path.expanduser("~/.local/state/ambxst/family-size-preview")
 
-GAP, LEFT, TOP = 32, 48, 48
+GAP, LEFT, TOP = 32, 48, 64
 ROWS = [
     # Every type in both of its families, so the row is a comparison and not a sample: the
     # media card is the one whose `compact` is a different ARRANGEMENT (cover beside the
@@ -38,7 +45,7 @@ ROWS = [
     ("compact", [("clock", 280, 80), ("weather", 280, 80), ("system", 280, 80),
                  ("calendar", 280, 112), ("media", 280, 80)]),
 ]
-CROP_W, CROP_H = 1690, 620
+CROP_W, CROP_H = 1690, 660
 # `--idle` photographs the OTHER state of the media card: with `keepWhenIdle` on, a card
 # whose player is silent stays on the desktop and says so, so the shot has to be taken with
 # the option in the throwaway layout (the user's own file never carries it) AND with nothing
@@ -91,6 +98,51 @@ def force_scale1(out):
     raise SystemExit(f"could not force scale 1 on {out}")
 
 
+def write_layout(data, path=CFG):
+    """Write the layout ATOMICALLY.
+
+    The shell WATCHES this file. A partial read parses to zero widgets, so every card
+    disappears from the screen — and the pixel diff against the previous shot is still LARGE,
+    because the cards are exactly what went missing. Measured here: a 22% diff, no cards, and
+    the same run passing on a retry. Write beside the file and replace it, so a reader sees
+    either the old file or the whole new one.
+    """
+    tmp = path + ".writing"
+    with open(tmp, "w") as fh:
+        json.dump(data, fh, indent=2)
+    os.replace(tmp, path)
+
+
+def restore(backup, path=CFG):
+    """Put the user's own layout back, byte-exact and ATOMICALLY.
+
+    Byte-exact because a re-serialised copy is not the file they had (indent, key order), and
+    atomic because this runs over a file the shell watches: a half-written layout reads as ZERO
+    widgets, i.e. their desktop with every card gone. Idempotent on purpose, which is what lets
+    the `finally` at the end of main() call it whether or not the body already did.
+    """
+    tmp = path + ".writing"
+    shutil.copyfile(backup, tmp)
+    os.replace(tmp, path)
+
+
+def assert_cards(png, box):
+    """The layout must have been PAINTED where it says it was.
+
+    A card's border and its text make hard edges; the wallpaper behind them is a gradient. A
+    box that is all gradient is a box where nothing was drawn, whatever the pixel diff says —
+    which is the failure the diff cannot see.
+    """
+    gray = np.asarray(Image.open(png).convert("L")).astype(float)
+    x, y, w, h = box
+    sharp = float(np.abs(np.diff(gray[y:y + h, x:x + w], axis=1)).max())
+    if sharp < 25:
+        raise SystemExit(f"nothing was drawn at {x},{y} {w}x{h} (sharpest edge {sharp:.0f}): "
+                         f"the throwaway layout never rendered, so this run was about to "
+                         f"photograph an empty desktop")
+    print(f"cards painted: the {w}x{h} card at {x},{y} shows a {sharp:.0f}-level edge")
+
+
 def throwaway_layout():
     """The two rows, anchored to the top-left of the output so the crop holds them."""
     cards, y = [], TOP
@@ -131,21 +183,32 @@ def main():
         throwaway["keepWhenIdle"] = True
     if SOLID:
         throwaway["background"] = "solid"
-    json.dump(throwaway, open(CFG, "w"), indent=2)
+    write_layout(throwaway)
     shot = os.path.join(OUTDIR, "tiers" + ("-idle" if IDLE else "")
                         + ("-solid" if SOLID else "") + ".png")
-    settle(m, shot)
+    try:
+        settle(m, shot)
 
-    moved = changed_fraction(os.path.join(OUTDIR, "before.png"), shot)
-    if moved < 0.01:
-        raise SystemExit(f"the throwaway layout did NOT take effect ({moved:.4%} changed)")
+        moved = changed_fraction(os.path.join(OUTDIR, "before.png"), shot)
+        if moved < 0.01:
+            raise SystemExit(f"the throwaway layout did NOT take effect ({moved:.4%} changed)")
 
-    subprocess.run(["cp", backup, CFG], check=True)
-    settle(m, os.path.join(OUTDIR, "restored.png"))
+        assert_cards(shot, (LEFT, TOP, ROWS[0][1][0][1], ROWS[0][1][0][2]))
+
+        restore(backup)
+        settle(m, os.path.join(OUTDIR, "restored.png"))
+    finally:
+        # The layout and the output are the two things this harness BORROWS from the user, and
+        # both go back whatever happened above — not only on the happy path. Not hypothetical:
+        # an exception between the write and the restore (a NameError, of all things) left a
+        # throwaway layout on their desktop for minutes AND a headless output in their monitor
+        # list, because the removal sat at the end of the function.
+        restore(backup)
+        sh("hyprctl", "output", "remove", out)
+
     same = subprocess.run(["diff", "-q", backup, CFG]).returncode == 0
     after_clients = sorted((c["class"], c["monitor"]) for c in
                            json.loads(sh("hyprctl", "clients", "-j")))
-    sh("hyprctl", "output", "remove", out)
     print(f"layout applied ({moved:.2%} changed), restored byte-exact: {same}")
     print("windows moved:", "none" if before_clients == after_clients else
           f"{before_clients} -> {after_clients}")

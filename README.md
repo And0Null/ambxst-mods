@@ -153,9 +153,9 @@ ambxst mods enable and0null.desktop-widgets
 
 ### Screenshots
 
-Four of the five widgets, in two of their three content families — the large cards are
-`full`, the row below them is `compact` (the calendar's compact is the week strip, not a
-squeezed month). The player card (`media`) is not in this capture yet:
+All five widgets, in two of their three content families — the large cards are `full`, the
+row below them is `compact` (the calendar's compact is the week strip rather than a squeezed
+month, and the player card's is the strip: the cover beside the title, no artist line):
 
 ![Desktop widgets, in their families](screenshots/desktop-widgets-families.png)
 
