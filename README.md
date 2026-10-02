@@ -459,21 +459,28 @@ a right-anchored card shrinks and grows to the left and keeps its distance from 
 a group child has no card of its own: what it draws changes inside its parent's card, which
 owns the size. Re-applying a design resets families, the same deal visibility already has.
 
-The menu is **horizontal on every screen wide enough for it**: two 380px columns side by
-side — the widgets on the left, the calendars on the right, the footer across the bottom —
-and a single 380px column only on a screen narrower than 812px. Height is the scarce axis on
-both outputs this desktop has (the 1920x1080 monitor and the 1366x768 laptop panel, where the
-same overlay is drawn on both), and the vertical shape the 1080 used to get was 949px tall —
-88% of the screen — and grew with every widget added. Both outputs now draw the same 808x629
-menu. The numbers are measured, not guessed (`tests/desktop-widgets-menu-geometry.py` reads
-them back out of the menu and checks the live panel against them), each list stops drawing past
-six rows (six widgets, six calendar rows) so the panel cannot grow with how many entries the
-files hold — past the cap the list scrolls and says how many rows are out of sight — and a
-height cap plus a scroll region remain as the backstop if a screen is smaller still. The widget
-list is capped in **whole rows**, never at a pixel offset that can slice a row in half, and the
-add-widget row sits outside that list so it can never be the thing that gets clipped: it used to
-be, by six pixels, and it is the row you add a widget with. A third column never happens: 1208px
-does not fit a 1366-wide output with its margins.
+The menu **reflows by column**, and a column has to earn its width: two 380px columns side by
+side — the widgets on the left, the calendars on the right, the settings block across the bottom
+— on any screen with room for them, a single 380px column on a screen narrower than 812px (where
+the same blocks stack), and **three** on a screen that is wide but SHORT: with the settings block
+standing beside the other two instead of crossing the bottom, the panel stops paying for its
+height twice. The shape is a consequence of the room and never a preference, and the geometry
+harness re-derives it on every screen this desktop has.
+
+Height is the scarce axis on both outputs (the 1920x1080 monitor and the 1366x768 laptop panel,
+where the same overlay is drawn on both), and the room a panel has is what is left **between the
+bar and the dock** — the bar owns the first 48 rows, the dock the last 71 — not `screen.height`.
+Measured live: the 1080 draws the two-column shape, **808x787**, in a 937px room; the laptop
+draws the three-column one, **1204x383**, in a 625px room, where its two-column shape would have
+needed 700px and the old `screen.height - 24` cap centred a 787px panel into y 12..756 — starting
+under the notch and ending over the dock. Each list stops drawing past six rows (six widgets, six
+calendar rows) so the panel cannot grow with how many entries the files hold — past the cap it
+scrolls and says how many rows are out of sight — and the height cap plus a scroll region remain
+the backstop for a screen smaller still. The widget list is capped in **whole rows**, never at a
+pixel offset that can slice a row in half, and the add-widget row sits outside that list so it can
+never be the thing that gets clipped: it used to be, by six pixels, and it is the row you add a
+widget with. (An older note here claimed a third column never happens because 1208px does not fit
+a 1366-wide output. It does: 380*3 + 16*2 + 24 = 1196.)
 
 To move widgets around, flip **Edit layout** on: cards get a highlighted border and
 become draggable (open-hand cursor); drag them, then click **Done** to commit.
@@ -529,7 +536,7 @@ itself proves nothing:
 | any card size and family, captured on a headless output | `python3 tests/calendar-scale-preview.py 720x400:detailed` |
 | the cell -> date mapping behind the dots: 96 months, 3 timezones, the formula **extracted from the shipped patch**, checked against the `layout.js` of the deployed generation | `node tests/calendar-cells.js` |
 | the sources file through the menu: opening the menu must write nothing, a real edit must write, a duplicate must be refused, and an **unparseable file must never be overwritten** | `python3 tests/calendar-menu-writes.py` |
-| the menu's shape **and that nothing in it is clipped**: the columns it picks per real screen, the width that implies, the height it is allowed, how far the add-widget row sits from the list's own Flickable (2 means it is back inside the region that clips), and — from a capture of the live panel — the add-widget row as **painted** (a full list used to slice its bottom edge off, 26px of button drawn as 20) — with the constants **read out of the shipped QML** | `python3 tests/desktop-widgets-menu-geometry.py` |
+| the menu's shape **and that nothing in it is clipped**: the columns it picks per real screen — **re-derived** from the room between the bar and the dock, so one/two/three columns are judged against the room rather than recorded — the width that implies, the height it is allowed, how far the add-widget row sits from the list's own Flickable (2 means it is back inside the region that clips), and — from a capture of the live panel — the add-widget row as **painted** (a full list used to slice its bottom edge off, 26px of button drawn as 20) — with the constants **read out of the shipped QML** | `python3 tests/desktop-widgets-menu-geometry.py` |
 | the content-family selector: the tiers the menu offers are the ones the widget QMLs draw, the switches sit on the file's families (group children included, unknown families offered nothing), a pick on an option writes through the control's own signal, an out-of-range index writes nothing, the size each family is applied at is the one the widget's header declares (both tables read back out of the sources) and clears the widget's own gate, a pick **shrinks** as well as grows and doing it twice does not move the card twice, and the calendar's minimal tier is a week: the panel, asked at that card's inner size, draws **one** row of days that starts on a Monday and holds today, with its letters and without the title | `python3 tests/widget-family-menu.py` |
 | the player card, measured on the card the shell runs: the strip's arrangement (the cover's side, where the column starts, which of the six rows are drawn), the **idle switch with its control** (off hides the card, on shows it saying *Nothing playing* behind the sleeping face, at the size each family declares), and the card loading clean | `python3 tests/media-family-fit.py --repo` |
 | every card in both of its families photographed on a headless output — glass and solid (`--solid`), playing and idle (`--idle`) — with a throwaway layout, restored byte-exact | `python3 tests/family-size-preview.py [--idle] [--solid]` |

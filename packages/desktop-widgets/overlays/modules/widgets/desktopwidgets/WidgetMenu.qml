@@ -25,7 +25,13 @@ PanelWindow {
         top: true
         left: true
     }
-    margins.top: Math.round((screen.height - implicitHeight) / 2)
+    // Centred in the room that is actually free: below the bar and above the dock. Both are
+    // this desktop's own measured numbers (the same ones tests/designfit.js pins the widgets
+    // with), and a panel that ignores them is a panel that starts under the notch and ends over
+    // the dock — which is how it read on the 1366x768 output before this.
+    margins.top: root.barClearance
+                 + Math.round((screen.height - root.barClearance - root.dockClearance
+                               - implicitHeight) / 2)
     margins.left: Math.round((screen.width - implicitWidth) / 2)
 
     // A segmented switch with a sliding highlight, sized to its labels. NOT the stock
@@ -167,7 +173,24 @@ PanelWindow {
     // the 1366x768 output and 808x700 on the 1920x1080 one, against the 412x949 the 1080
     // used to draw.
     readonly property bool twoColumns: root.screen.width >= (root.columnWidth * 2 + root.columnGap + 24)
-    readonly property int menuColumns: root.twoColumns ? 2 : 1
+    // Three columns are for a screen that is WIDE and SHORT: the same tree, with the settings
+    // block standing beside the other two instead of crossing the bottom. It is chosen only when
+    // the two-column shape does NOT fit the room and the three-column one does — the shape is a
+    // consequence of the room, never a preference. (The comment above used to claim a third column
+    // would not fit a 1366-wide output: 380*3 + 16*2 + 24 = 1196, and that output is 1366.)
+    readonly property bool threeColumns: root.screen.width >= (root.columnWidth * 3 + root.columnGap * 2 + 24)
+        && (root.shapeTwoHeight + 32) > root.maxMenuHeight
+        && (root.shapeThreeHeight + 32) <= root.maxMenuHeight
+    readonly property int menuColumns: root.threeColumns ? 3 : (root.twoColumns ? 2 : 1)
+    // What each shape needs in height, taken from the three blocks themselves: they are the same
+    // blocks in every shape and their own heights do not depend on how many columns they sit in,
+    // so these two numbers cannot chase the shape they decide.
+    readonly property int shapeTwoHeight: Math.max(widgetsColumn.implicitHeight,
+                                                   calendarsColumn.implicitHeight)
+                                          + 10 + settingsColumn.implicitHeight
+    readonly property int shapeThreeHeight: Math.max(widgetsColumn.implicitHeight,
+                                                     Math.max(calendarsColumn.implicitHeight,
+                                                              settingsColumn.implicitHeight))
     // Row pitch of each list, measured on the running shell: a widget row is 40px, a
     // calendar row 42px. A cap expressed in ROWS rather than in pixels is what keeps a
     // change from slicing a row in half at the boundary.
@@ -181,14 +204,19 @@ PanelWindow {
     // 1366x768 output, and the widget cap binds first on a taller screen.
     readonly property int maxWidgetRows: 6
     readonly property int maxSourceRows: 6
-    readonly property int menuWidth: root.menuColumns === 1
-                                     ? root.columnWidth
-                                     : root.columnWidth * 2 + root.columnGap
+    readonly property int menuWidth: root.columnWidth * root.menuColumns
+                                     + root.columnGap * (root.menuColumns - 1)
     implicitWidth: DesktopWidgetsService.editMode ? 230 : (root.menuWidth + 32)
     // Whatever the shape, the menu has to fit the SMALLEST screen the user has — the layout
     // it edits is drawn on all of them. Past the cap it scrolls instead of running off the
     // edge, where its own title and its Done button would be unreachable.
-    readonly property int maxMenuHeight: Math.max(240, root.screen.height - 24)
+    // The room is what is BETWEEN the bar and the dock, not the screen. Before this the cap was
+    // `screen.height - 24`: on the 1366x768 output that is 744, centred into y 12..756 — starting
+    // under the notch and ending over the dock, which is exactly where the user found it.
+    readonly property int barClearance: 48
+    readonly property int dockClearance: 71
+    readonly property int maxMenuHeight: Math.max(240, root.screen.height - root.barClearance
+                                                  - root.dockClearance - 24)
     implicitHeight: DesktopWidgetsService.editMode ? (pillRow.implicitHeight + 24) : Math.min(menuGrid.implicitHeight + 32, root.maxMenuHeight)
 
     onVisibleChanged: {
@@ -299,6 +327,7 @@ PanelWindow {
 
                 // The widgets themselves: the design picker, the entries, the add row.
                 ColumnLayout {
+                    id: widgetsColumn
                     Layout.row: 0
                     Layout.column: 0
                     Layout.preferredWidth: root.columnWidth
@@ -572,8 +601,13 @@ PanelWindow {
                 // The calendars: this block is what makes the menu tall, so it is the one
                 // that moves to a second column when the screen is short.
                 ColumnLayout {
-                    Layout.row: root.menuColumns === 2 ? 0 : 1
-                    Layout.column: root.menuColumns === 2 ? 1 : 0
+                    id: calendarsColumn
+                    // Right of the widgets unless there is only one column, in which case it goes
+                    // under them. (`=== 2` was wrong the moment a third column existed: three
+                    // columns put this block at row 1, column 0 — under the widgets, on top of
+                    // nothing.)
+                    Layout.row: root.menuColumns === 1 ? 1 : 0
+                    Layout.column: root.menuColumns === 1 ? 0 : 1
                     Layout.preferredWidth: root.columnWidth
                     spacing: 10
                     // Calendars: the SAME file the service reads, edited here. The menu keeps no
@@ -780,12 +814,20 @@ PanelWindow {
 
                 // The footer - layout editing, opacity, the buttons - across the bottom.
                 ColumnLayout {
-                    Layout.row: root.menuColumns === 2 ? 1 : 2
-                    Layout.column: 0
-                    Layout.columnSpan: root.menuColumns
-                    Layout.fillWidth: true
+                    id: settingsColumn
+                    // Across the bottom in the one- and two-column shapes; its own column in the
+                    // three-column one, which is the whole point of that shape: a block that
+                    // crosses the bottom is height the panel pays on top of the tallest column.
+                    Layout.row: root.menuColumns === 3 ? 0 : (root.menuColumns === 2 ? 1 : 2)
+                    Layout.column: root.menuColumns === 3 ? 2 : 0
+                    Layout.columnSpan: root.menuColumns === 3 ? 1 : root.menuColumns
+                    Layout.fillWidth: root.menuColumns !== 3
+                    Layout.preferredWidth: root.menuColumns === 3 ? root.columnWidth : -1
                     spacing: 10
+                    // The rule only means something when this block crosses the bottom; standing
+                    // in a column of its own it would be a line under the title for no reason.
                     Separator {
+                        visible: root.menuColumns !== 3
                         Layout.fillWidth: true
                     }
 
