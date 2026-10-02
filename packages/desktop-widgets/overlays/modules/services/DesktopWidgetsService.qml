@@ -69,6 +69,16 @@ Singleton {
     // `family` is carried per entry and per group child for future widget variants
     // (nothing reads it yet); `direction` lays a group out as a column (default) or
     // as a row. Tuning a design is editing this list, nothing else.
+    //
+    // The player card is in EVERY design, as `compact` and in the free band each layout already
+    // had, because the alternative was worse in two ways: a design that does not mention a widget
+    // is a design that REMOVES it (applying a design rewrites the list, so the media card a user
+    // had by hand disappeared on the next click), and `full` (400px) or `detailed` (457px) do not
+    // fit a 1366x768 output in any of these layouts — measured per design, per side: the two
+    // columns' lowest cards leave 0, 39, 79, 135 or 289px, and only `Row` and `Minimal` reach
+    // 400 (and Minimal keeps those entries disabled anyway). An 80px strip fits all seven with
+    // room to spare, which is the same rule the calendar's compact tier follows: a family's size
+    // is the room its information needs, not a small copy of the tall one.
     readonly property var designs: [
         {
             id: "split", name: "Split",
@@ -76,7 +86,9 @@ Singleton {
                 { type: "clock", ax: "left", ox: 57, ay: "top", oy: 88, w: 280, h: 190 },
                 { type: "weather", ax: "left", ox: 57, ay: "top", oy: 372, w: 280, h: 190 },
                 { type: "system", ax: "right", ox: 57, ay: "top", oy: 88, w: 280, h: 190 },
-                { type: "calendar", ax: "right", ox: 57, ay: "top", oy: 372, w: 360, h: 360 }
+                { type: "calendar", ax: "right", ox: 57, ay: "top", oy: 372, w: 360, h: 360 },
+                { type: "media", family: "compact", ax: "left", ox: 57, ay: "bottom", oy: 40,
+                  w: 280, h: 80 },
             ]
         },
         {
@@ -85,7 +97,9 @@ Singleton {
                 { type: "clock", ax: "left", ox: 40, ay: "top", oy: 48, w: 280, h: 190 },
                 { type: "weather", ax: "left", ox: 40, ay: "top", oy: 258, w: 280, h: 190 },
                 { type: "system", ax: "left", ox: 40, ay: "top", oy: 468, w: 280, h: 190 },
-                { type: "calendar", ax: "right", ox: 40, ay: "top", oy: 48, w: 360, h: 360 }
+                { type: "calendar", ax: "right", ox: 40, ay: "top", oy: 48, w: 360, h: 360 },
+                { type: "media", family: "compact", ax: "right", ox: 40, ay: "bottom", oy: 40,
+                  w: 280, h: 80 },
             ]
         },
         {
@@ -93,7 +107,9 @@ Singleton {
             entries: [
                 { type: "group", direction: "column", children: ["clock", "weather", "system"],
                   ax: "left", ox: 40, ay: "top", oy: 48, w: 320, h: 640 },
-                { type: "calendar", ax: "right", ox: 40, ay: "top", oy: 48, w: 360, h: 360 }
+                { type: "calendar", ax: "right", ox: 40, ay: "top", oy: 48, w: 360, h: 360 },
+                { type: "media", family: "compact", ax: "right", ox: 40, ay: "bottom", oy: 40,
+                  w: 280, h: 80 },
             ]
         },
         {
@@ -101,7 +117,9 @@ Singleton {
             entries: [
                 { type: "group", direction: "row", children: ["clock", "weather", "system"],
                   ax: "left", ox: 40, ay: "top", oy: 48, w: 810, h: 222 },
-                { type: "calendar", ax: "right", ox: 40, ay: "top", oy: 48, w: 360, h: 360 }
+                { type: "calendar", ax: "right", ox: 40, ay: "top", oy: 48, w: 360, h: 360 },
+                { type: "media", family: "compact", ax: "right", ox: 40, ay: "bottom", oy: 40,
+                  w: 280, h: 80 },
             ]
         },
         {
@@ -110,7 +128,9 @@ Singleton {
                 { type: "clock", ax: "left", ox: 40, ay: "top", oy: 48, w: 280, h: 190 },
                 { type: "system", ax: "left", ox: 340, ay: "top", oy: 48, w: 280, h: 190 },
                 { type: "weather", ax: "left", ox: 40, ay: "top", oy: 258, w: 280, h: 190 },
-                { type: "calendar", ax: "left", ox: 340, ay: "top", oy: 258, w: 360, h: 360 }
+                { type: "calendar", ax: "left", ox: 340, ay: "top", oy: 258, w: 360, h: 360 },
+                { type: "media", family: "compact", ax: "left", ox: 40, ay: "bottom", oy: 40,
+                  w: 280, h: 80 },
             ]
         },
         {
@@ -119,7 +139,9 @@ Singleton {
                 { type: "clock", ax: "left", ox: 57, ay: "top", oy: 88, w: 280, h: 190 },
                 { type: "calendar", ax: "right", ox: 57, ay: "top", oy: 372, w: 360, h: 360 },
                 { type: "weather", ax: "left", ox: 57, ay: "top", oy: 372, w: 280, h: 190, enabled: false },
-                { type: "system", ax: "right", ox: 57, ay: "top", oy: 88, w: 280, h: 190, enabled: false }
+                { type: "system", ax: "right", ox: 57, ay: "top", oy: 88, w: 280, h: 190, enabled: false },
+                { type: "media", family: "compact", ax: "left", ox: 57, ay: "bottom", oy: 40,
+                  w: 280, h: 80 },
             ]
         },
         {
@@ -128,7 +150,28 @@ Singleton {
                 { type: "clock", ax: "center", ox: 0, ay: "top", oy: 60, w: 280, h: 190 },
                 { type: "calendar", ax: "center", ox: 0, ay: "bottom", oy: 100, w: 360, h: 360 },
                 { type: "weather", ax: "left", ox: 40, ay: "bottom", oy: 100, w: 280, h: 190, enabled: false },
-                { type: "system", ax: "right", ox: 40, ay: "bottom", oy: 100, w: 280, h: 190, enabled: false }
+                { type: "system", ax: "right", ox: 40, ay: "bottom", oy: 100, w: 280, h: 190, enabled: false },
+                { type: "media", family: "compact", ax: "left", ox: 40, ay: "bottom", oy: 40,
+                  w: 280, h: 80 },
+            ]
+        },
+        {
+            // The one layout that is ABOUT the music, and the only place `detailed` earns its
+            // keep: the player card gets the tall family on the right, and the other four drop to
+            // their strips on the left, so the column it needs (457px) is paid for by the cards
+            // that no longer want it. Nothing is disabled and nothing overlaps on either output.
+            id: "nowplaying", name: "Now Playing",
+            entries: [
+                { type: "media", family: "detailed", ax: "right", ox: 57, ay: "top", oy: 271,
+                  w: 280, h: 457 },
+                { type: "clock", family: "compact", ax: "left", ox: 57, ay: "top", oy: 48,
+                  w: 280, h: 80 },
+                { type: "weather", family: "compact", ax: "left", ox: 57, ay: "top", oy: 136,
+                  w: 280, h: 80 },
+                { type: "system", family: "compact", ax: "left", ox: 57, ay: "top", oy: 224,
+                  w: 280, h: 80 },
+                { type: "calendar", family: "compact", ax: "left", ox: 57, ay: "top", oy: 312,
+                  w: 280, h: 112 }
             ]
         }
     ];

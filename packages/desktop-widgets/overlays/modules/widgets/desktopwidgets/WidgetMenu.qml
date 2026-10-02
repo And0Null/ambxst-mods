@@ -909,6 +909,8 @@ PanelWindow {
                             Layout.fillWidth: true
                         }
 
+                        // Read back out of here by tests/widget-family-menu.py, so the
+                        // expectation is an index into the ORDER the menu lists them in.
                         FamilySwitch {
                             options: ["Solid", "Glass"]
                             currentIndex: DesktopWidgetsService.background === "solid" ? 0 : 1
@@ -929,7 +931,8 @@ PanelWindow {
                         Layout.fillWidth: true
                     }
 
-                    // Labelled: a bare slider in a menu says nothing about what it changes.
+                    // The card surface's OWN slider: what a bare slider in a menu says nothing
+                    // about. Labelled, because an unlabelled one says nothing.
                     // This is the card's OWN opacity — how much of the wallpaper shows
                     // through the glass — not the theme's color, which comes from the
                     // shell palette (colors.json / matugen). Hidden in `solid`, where there
