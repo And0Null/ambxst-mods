@@ -39,6 +39,15 @@ ROWS = [
                  ("calendar", 280, 112), ("media", 280, 80)]),
 ]
 CROP_W, CROP_H = 1690, 620
+# `--idle` photographs the OTHER state of the media card: with `keepWhenIdle` on, a card
+# whose player is silent stays on the desktop and says so, so the shot has to be taken with
+# the option in the throwaway layout (the user's own file never carries it) AND with nothing
+# on the MPRIS bus. Separate capture name, so the two states are never confused.
+IDLE = "--idle" in sys.argv
+# `--solid` photographs the other MATERIAL: with `background: "solid"` the cards are one flat
+# colour instead of glass over the wallpaper, so the same layout has to be shot twice to be
+# compared at all. Throwaway layout only — the user's own file keeps whatever mode it has.
+SOLID = "--solid" in sys.argv
 OUTPUT_MODE = "1920x1080"
 
 
@@ -118,8 +127,13 @@ def main():
     settle(m, os.path.join(OUTDIR, "before.png"))
     throwaway = dict(live)
     throwaway["widgets"] = throwaway_layout()
+    if IDLE:
+        throwaway["keepWhenIdle"] = True
+    if SOLID:
+        throwaway["background"] = "solid"
     json.dump(throwaway, open(CFG, "w"), indent=2)
-    shot = os.path.join(OUTDIR, "tiers.png")
+    shot = os.path.join(OUTDIR, "tiers" + ("-idle" if IDLE else "")
+                        + ("-solid" if SOLID else "") + ".png")
     settle(m, shot)
 
     moved = changed_fraction(os.path.join(OUTDIR, "before.png"), shot)

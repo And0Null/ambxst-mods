@@ -28,6 +28,20 @@ Singleton {
     // Global card alpha for every widget frame (0.3..1). Persisted as the
     // top-level "opacity" field of the layout file.
     property real opacity: 0.42
+    // Whether the MEDIA card stays on the desktop when there is nothing worth showing.
+    // Off by default, and off is exactly the behaviour that shipped before this option
+    // existed: the card leaves, so the desktop shows only what is playing. On, the card
+    // stays and says so on its own cover — the point being that a card which comes and
+    // goes makes the layout move, and someone who arranged their desktop wants it to stay
+    // put. Global like opacity: someone with two media cards is answering a question about
+    // the widget, not about one of them. Persisted as the top-level "keepWhenIdle" field.
+    property bool keepWhenIdle: false
+    // How the cards are painted: "glass" (the default, and what shipped: a translucent
+    // surface over the blurred wallpaper) or "solid" (one flat colour with nothing of the
+    // wallpaper in it). Persisted as the top-level "background" field. The fill comes from
+    // the THEME in both cases, so a solid card follows a light or dark theme instead of
+    // pinning a hex that a wallpaper change would leave behind.
+    property string background: "glass"
     // Design the current layout came from ("split", "rail", …), or "custom" once it
     // has been edited by hand. Informational: the menu highlights it.
     property string design: "custom"
@@ -262,6 +276,15 @@ Singleton {
             }
             if (j && typeof j.opacity === "number" && !isNaN(j.opacity))
                 root.opacity = Math.min(1, Math.max(0.3, j.opacity));
+            // Assigned in BOTH directions on purpose: a layout file that no longer carries
+            // the field means OFF, and a stale `true` left in the model by an earlier read
+            // would keep the card up with nothing on screen saying why. (A file that is
+            // MISSING never gets here — nothing parses and the defaults stand.)
+            root.keepWhenIdle = j ? j.keepWhenIdle === true : false;
+            // The two values the frame knows, and nothing else: a hand-edited file carrying
+            // something else falls back to the glass that shipped rather than to a card
+            // painted in a colour nobody can name.
+            root.background = (j && j.background === "solid") ? "solid" : "glass";
             if (j && typeof j.design === "string" && j.design.length > 0)
                 root.design = j.design;
             return out;
@@ -606,6 +629,27 @@ Singleton {
         saveDebounce.restart();
     }
 
+    function setKeepWhenIdle(value) {
+        // Same rule as setOpacity, for the same reason: the menu's switch is bound to this
+        // property and also fires when the file's value arrives, so writing unconditionally
+        // would save the whole layout just for opening the menu — and would rewrite a
+        // hand-edited file with the parsed model.
+        if (value === keepWhenIdle)
+            return;
+        keepWhenIdle = value;
+        saveDebounce.restart();
+    }
+
+    function setBackground(value) {
+        // Same rule as the other preferences: the menu's switch is bound to this value and
+        // fires when the file's value lands, so only a REAL change writes (debounced).
+        var next = value === "solid" ? "solid" : "glass";
+        if (next === background)
+            return;
+        background = next;
+        saveDebounce.restart();
+    }
+
     function toggleEditMode() {
         editMode = !editMode;
     }
@@ -617,7 +661,8 @@ Singleton {
     function save() {
         isSaving = true;
         saveGuard.restart();
-        file.setText(JSON.stringify({ design: design, opacity: opacity, widgets: widgets }, null, 2));
+        file.setText(JSON.stringify({ design: design, opacity: opacity,
+            keepWhenIdle: keepWhenIdle, background: background, widgets: widgets }, null, 2));
     }
 
     // ---- the day detail ---------------------------------------------------------
