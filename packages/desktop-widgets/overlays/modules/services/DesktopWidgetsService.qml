@@ -349,7 +349,7 @@ Singleton {
         weather: ["compact", "full", "detailed"],
         system: ["compact", "full", "detailed"],
         calendar: ["compact", "full", "detailed"],
-        media: ["full", "detailed"]
+        media: ["compact", "full", "detailed"]
     })
 
     // Families for a type, always as a fresh list: the menu binds it straight to a
@@ -418,7 +418,10 @@ Singleton {
         // cards in a layout line up. Keep any comment on its OWN line: the harness parses
         // one entry per line and a trailing comment would break the match, dropping the
         // entry from the table it compares against the widget's header.
-        media: { full: { w: 280, h: 400 }, detailed: { w: 280, h: 457 } }
+        // The strip is 80 for the same reason every other compact is: 48 of content — the
+        // cover's own square beside a column of title (20) + 8 + transport (17) — plus the
+        // 32 the frame takes.
+        media: { compact: { w: 280, h: 80 }, full: { w: 280, h: 400 }, detailed: { w: 280, h: 457 } }
     })
 
     // null for a type with no families of its own (a group card draws its children) and

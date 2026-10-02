@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The media card's two families, measured from the pixels the real card draws.
+"""The media card's three families, measured from the pixels the real card draws.
 
     caret   the switcher caret beside the artist line is optically CENTRED on that line.
             A Row gives every child the Row's full height and aligns them by
@@ -14,6 +14,13 @@
             `ReferenceError: Config is not defined` on every card (measured live in the
             running shell's own qslog, twice per card) and the times silently fall back to
             the UI font.
+    strip   `compact` is an ARRANGEMENT, not the tall card with fewer rows: the cover's side
+            comes from the strip's height instead of the card's width, the two rows it has
+            start 8px to the RIGHT of that cover, and the artist line and the seek row are
+            not drawn. Those are the tree's own numbers — read out of the tree running at the
+            size the SERVICE applies — because a 48px strip of ink over blurred glass is too
+            little for the contrast method the `fit` check works with. Pixels are asked for
+            the one thing they can still say on a strip that small: where the text starts.
 
 Three things this harness must not do, all learned here the hard way:
 
@@ -74,10 +81,11 @@ ShellRoot {
     property var log: []
     property int pending: 0
 
-    // ONE window for both cards, stacked: a second window only made the grabs race over
-    // which surface was live (measured: the row's grab landed, the two card grabs never
+    // ONE window for all three cards, stacked: a second window only made the grabs race
+    // over which surface was live (measured: the row's grab landed, the two card grabs never
     // fired). A layer-shell panel is handed exactly the size asked for, so nothing is
-    // rescaled.
+    // rescaled. The strip rides at the bottom, where 48px of card is not in the way of
+    // anything.
     //
     // The heights are the ones the SERVICE applies, read from its own table at run time —
     // NOT the numbers this harness would like. Hardcoding 425 made the `fit` check unable
@@ -89,7 +97,7 @@ ShellRoot {
         id: win
         visible: true
         implicitWidth: 260
-        implicitHeight: 880
+        implicitHeight: 940
         color: "transparent"
         anchors { top: true; left: true }
 
@@ -108,6 +116,14 @@ ShellRoot {
             height: DesktopWidgetsService.naturalCard("media", "detailed").h - 32
             family: "detailed"
         }
+        MediaWidget {
+            id: cmp
+            x: 6
+            y: 830
+            width: 248
+            height: DesktopWidgetsService.naturalCard("media", "compact").h - 32
+            family: "compact"
+        }
     }
 
     Process {
@@ -117,17 +133,47 @@ ShellRoot {
         onExited: Qt.quit()
     }
 
-    // The artist row: the content Column's child that holds the caret glyph.
+    // The artist row: the Row in the card that holds the caret glyph. Searched DEPTH FIRST
+    // and not by index: the widget's top level is the cover, the content column and the
+    // chooser, and the row is three levels in.
     function artistRowOf(w) {
-        var body = w.children ? w.children[0] : null;
-        if (!body) return null;
-        var kids = body.children || [];
+        var stack = (w.children || []).slice();
+        while (stack.length) {
+            var it = stack.shift();
+            var kids = it.children || [];
+            for (var i = 0; i < kids.length; i++)
+                if (kids[i].text !== undefined && String(kids[i].text).indexOf("") >= 0)
+                    return it;
+            stack = stack.concat(kids);
+        }
+        return null;
+    }
+
+    // The strip's two boxes, found by SHAPE rather than by index so that a family adding a
+    // box does not silently move what is measured: the cover is the rounded tile with a
+    // border, and the content column is the column that is NOT the chooser (the chooser is
+    // the one whose children include a Repeater, i.e. an item carrying a `model`).
+    function coverOf(w) {
+        var kids = w.children || [];
+        for (var i = 0; i < kids.length; i++)
+            if (kids[i].radius !== undefined && kids[i].border !== undefined
+                    && kids[i].border.width === 1)
+                return kids[i];
+        return null;
+    }
+
+    function contentColumnOf(w) {
+        var kids = w.children || [];
         for (var i = 0; i < kids.length; i++) {
-            var gc = kids[i].children || [];
-            for (var j = 0; j < gc.length; j++) {
-                if (gc[j].text !== undefined && String(gc[j].text).indexOf("") >= 0)
-                    return kids[i];
-            }
+            var col = kids[i];
+            if (col.spacing === undefined || col.children === undefined)
+                continue;
+            var gk = col.children, chooser = false;
+            for (var j = 0; j < gk.length; j++)
+                if (gk[j].model !== undefined)
+                    chooser = true;
+            if (!chooser)
+                return col;
         }
         return null;
     }
@@ -170,8 +216,48 @@ ShellRoot {
         // actually wrong rather than the one the harness hoped for.
         l.push("instantiated: full " + Math.round(full.width) + "x" + Math.round(full.height)
                + ", detailed " + Math.round(det.width) + "x" + Math.round(det.height)
+               + ", compact " + Math.round(cmp.width) + "x" + Math.round(cmp.height)
                + " (service declares "
-               + DesktopWidgetsService.naturalCard("media", "detailed").h + " of card)");
+               + DesktopWidgetsService.naturalCard("media", "detailed").h + " and "
+               + DesktopWidgetsService.naturalCard("media", "compact").h + " of card)");
+        // The strip, in the tree's own numbers: where the cover is, where the rows start,
+        // and WHICH rows are drawn at all. The cover's side coming from the strip's height
+        // instead of the card's width is the whole arrangement, and neither number can be
+        // read off a 48px PNG of ink.
+        var cov = coverOf(cmp), col = contentColumnOf(cmp);
+        if (!cov || !col) {
+            l.push("FATAL: the strip's cover or its content column was not found");
+            root.log = l;
+            flush();
+            return;
+        }
+        l.push("compact widget " + Math.round(cmp.width) + "x" + Math.round(cmp.height)
+               + " family=" + cmp.family);
+        l.push("compact cover x" + Math.round(cov.x) + " y" + Math.round(cov.y)
+               + " w" + Math.round(cov.width) + " h" + Math.round(cov.height));
+        l.push("compact column x" + Math.round(col.x) + " y" + Math.round(col.y)
+               + " w" + Math.round(col.width) + " h" + Math.round(col.height)
+               + " bottom" + Math.round(col.y + col.height));
+        var kids = col.children || [], drawn = [];
+        for (var i = 0; i < kids.length; i++) {
+            var k = kids[i];
+            if (!k.visible)
+                continue;
+            var controls = false, gk = k.children || [];
+            for (var j = 0; j < gk.length; j++)
+                if (gk[j].icon !== undefined)
+                    controls = true;
+            drawn.push((k.text !== undefined ? "text" : controls ? "controls" : "box")
+                       + "@" + Math.round(k.y) + "+" + Math.round(k.height));
+        }
+        l.push("compact rows " + kids.length + " drawn " + drawn.length + ": " + drawn.join(" "));
+        var caretRow = artistRowOf(cmp), seekDrawn = false;
+        for (i = 0; i < kids.length; i++)
+            if (kids[i].spacing !== undefined && kids[i].spacing <= 2 && kids[i].visible)
+                seekDrawn = true;
+        l.push("compact artist row "
+               + (caretRow ? (caretRow.visible ? "DRAWN" : "hidden") : "absent"));
+        l.push("compact seek row " + (seekDrawn ? "DRAWN" : "hidden"));
         var row = artistRowOf(full);
         if (!row) {
             l.push("FATAL: the artist row (the one carrying the caret) was not found");
@@ -195,7 +281,9 @@ ShellRoot {
         root.log = l;
         save(row, "artist", function () {
             save(full, "full", function () {
-                save(det, "detailed", flush);
+                save(det, "detailed", function () {
+                    save(cmp, "compact", flush);
+                });
             });
         });
         // The watchdog: a grab that never calls back must still produce a log, or the run
@@ -226,7 +314,7 @@ def read_sizes():
     src = (MOD / "overlays/modules/widgets/desktopwidgets/MediaWidget.qml").read_text()
     head = src[:src.find("Item {")]
     out = {}
-    for fam, w, h in re.findall(r"//\s+(full|detailed)\s+\((\d+)x(\d+)\)", head):
+    for fam, w, h in re.findall(r"//\s+(compact|full|detailed)\s+\((\d+)x(\d+)\)", head):
         out[fam] = (int(w), int(h))
     return out
 
@@ -314,6 +402,94 @@ def check_fit(png, label):
     return slack, why
 
 
+def compact_facts(log):
+    """The strip's own report, parsed. None when the probe never got that far."""
+    facts = {}
+    m = re.search(r"compact widget (\d+)x(\d+) family=(\S+)", log)
+    if not m:
+        return None
+    facts["widget"] = (int(m.group(1)), int(m.group(2)))
+    facts["family"] = m.group(3)
+    m = re.search(r"compact cover x(-?\d+) y(-?\d+) w(\d+) h(\d+)", log)
+    if m:
+        facts["cover"] = tuple(int(g) for g in m.groups())
+    m = re.search(r"compact column x(-?\d+) y(-?\d+) w(\d+) h(\d+) bottom(\d+)", log)
+    if m:
+        facts["column"] = tuple(int(g) for g in m.groups())
+    m = re.search(r"compact rows (\d+) drawn (\d+): (.*)", log)
+    if m:
+        facts["rows"] = (int(m.group(1)), int(m.group(2)), m.group(3).split())
+    m = re.search(r"compact artist row (\w+)", log)
+    facts["artist"] = m.group(1) if m else "?"
+    m = re.search(r"compact seek row (\w+)", log)
+    facts["seek"] = m.group(1) if m else "?"
+    return facts
+
+
+def check_strip(log):
+    """The strip is an ARRANGEMENT: a cover beside the rows, and only the two it has."""
+    facts = compact_facts(log)
+    if not facts or "cover" not in facts or "column" not in facts or "rows" not in facts:
+        return None, ["the strip's own report never arrived"]
+    w, h = facts["widget"]
+    cx, cy, cw, ch = facts["cover"]
+    colx, coly, colw, colh, colb = facts["column"]
+    total, drawn, visible = facts["rows"]
+    why = []
+    if cw != ch or ch != h:
+        why.append(f"the cover is {cw}x{ch} in a {w}x{h} strip: its side has to come from "
+                   f"the strip's HEIGHT ({h}), and a square as wide as the card would be a "
+                   f"{w}x{h} letterbox")
+    if (cx, cy) != (0, 0):
+        why.append(f"the cover sits at {cx},{cy}: it is the strip's top-left corner")
+    if colx < cw + 8:
+        why.append(f"the rows start at x{colx}, inside or on the cover's {cw}px: the column "
+                   f"begins 8px after the cover, at {cw + 8}")
+    if colx + colw > w:
+        why.append(f"the column runs to x{colx + colw}, past the strip's {w}px")
+    if colb > h:
+        why.append(f"the rows end at y{colb} in a {h}px strip: they leave the card")
+    if drawn != 2:
+        why.append(f"{drawn} rows are drawn in the strip ({' '.join(visible)}): this family "
+                   f"is the title and the transport, out of the {total} rows the card has")
+    elif not any(v.startswith("text") for v in visible):
+        why.append(f"the strip draws {visible}: it needs its title line")
+    elif not any(v.startswith("controls") for v in visible):
+        why.append(f"the strip draws {visible}: it needs its transport row")
+    if facts["artist"] != "hidden":
+        why.append(f"the artist row reads {facts['artist']} in the strip: this family asks "
+                   f"for the card WITHOUT it, so the row stays in the tree and hidden")
+    if facts["seek"] != "hidden":
+        why.append(f"the seek row reads {facts['seek']} in the strip")
+    return (f"cover {cw}x{ch} at {cx},{cy}, {drawn} rows from x{colx} to y{colb} of {h}", why)
+
+
+def check_strip_ink(png, want_h):
+    """Where the strip's text starts: the cover's right edge plus 8.
+
+    The strip's geometry is read out of the tree above; this is what pixels can still say on
+    48 rows of ink, and it is the part a person sees: a cover 48 wide with the title starting
+    at the card's own left edge would pass every structural check in this file and still be
+    the wrong drawing. The scan starts at x50 — past the cover's own border — and takes the
+    contrast per COLUMN, so text strokes stand out while the tile's flat fill does not.
+    """
+    gray = load_gray(png)
+    if gray.shape[0] != want_h:
+        return None, [f"the strip's grab is {gray.shape[0]}px tall; the widget at the size "
+                      f"the service applies is {want_h}"]
+    contrast = np.abs(np.diff(gray, axis=1)).mean(axis=0)[50:]
+    nz = np.nonzero(contrast > max(1.0, contrast.max() * 0.10))[0]
+    if not len(nz):
+        return None, ["the strip draws no text beside its cover (nothing above the contrast "
+                      "floor to the right of the cover)"]
+    first = int(nz[0]) + 50
+    why = []
+    if abs(first - 56) > 3:
+        why.append(f"the strip's text starts at x{first}, not at the cover's right edge + 8 "
+                   f"(56): the rows do not sit beside the cover (tolerance 3px)")
+    return first, why
+
+
 def check_qml(stderr):
     """This card must load clean: no ReferenceError from a missing import."""
     hits = [l for l in stderr.splitlines()
@@ -383,11 +559,11 @@ def main():
     modules = (tree / "modules") if (tree / "modules").is_dir() else tree
 
     sizes = read_sizes()
-    if "full" not in sizes or "detailed" not in sizes:
-        print(f"MediaWidget.qml's header declares {sorted(sizes)}, not both families")
+    if not all(f in sizes for f in ("compact", "full", "detailed")):
+        print(f"MediaWidget.qml's header declares {sorted(sizes)}, not all three families")
         return 2
-    print(f"declared card sizes: full {sizes['full'][0]}x{sizes['full'][1]}, "
-          f"detailed {sizes['detailed'][0]}x{sizes['detailed'][1]}")
+    print("declared card sizes: "
+          + ", ".join(f"{f} {sizes[f][0]}x{sizes[f][1]}" for f in ("compact", "full", "detailed")))
 
     work = Path(tempfile.mkdtemp(prefix="media-fit-"))
     failures = 0
@@ -403,16 +579,17 @@ def main():
                            capture_output=True, text=True, env=env)
 
         log = out.with_suffix(".log")
-        urls = {}
+        urls, text = {}, ""
         if log.exists():
-            print(log.read_text().rstrip())
+            text = log.read_text()
+            print(text.rstrip())
             # The grabs report `itemgrabber:#N`, an in-memory Quickshell URL and NOT a
             # file on disk, so the bytes have to be written out by the shell itself:
             # `Quickshell.Io` has no copy helper for it, and the shell is quitting by the
             # time Python looks. Instead the probe saves each result through
             # `result.saveToFile` after the callback — that IS supported, and it is the
             # file write that has to happen inside the shell.
-            for line in log.read_text().splitlines():
+            for line in text.splitlines():
                 m = re.match(r"saved (\S+) -> (\S+)", line.strip())
                 if m and os.path.exists(m.group(2)):
                     urls[m.group(1)] = m.group(2)
@@ -426,6 +603,9 @@ def main():
             ("fit-detailed", lambda: check_fit(urls["detailed"], "detailed")
              if "detailed" in urls
              else (None, ["the detailed card's grab never landed"])),
+            ("strip", lambda: check_strip(text)),
+            ("strip-ink", lambda: check_strip_ink(urls["compact"], sizes["compact"][1] - INSET * 2)
+             if "compact" in urls else (None, ["the strip's grab never landed"])),
             ("qml-clean", lambda: check_qml(p.stderr)),
         ]
         for name, fn in checks:
@@ -439,8 +619,9 @@ def main():
         if failures:
             print(f"\nFAILED: {failures} of {len(checks)} checks")
             return 1
-        print(f"\nPASS: {len(checks)} checks — the caret is centred, both cards fit what "
-              f"they draw, and the card loads clean")
+        print(f"\nPASS: {len(checks)} checks — the caret is centred, the three cards fit "
+              f"what they draw (the strip as an arrangement, not a smaller stack), and the "
+              f"card loads clean")
         return 0
     finally:
         if args.keep:
