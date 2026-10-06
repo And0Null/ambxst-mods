@@ -617,7 +617,7 @@ pushed the calendar 71px off its right edge.
   fought them for the same lines. The widgets need none of it — `WidgetLayer` reads fullscreen per
   output itself.
 
-## system-updates — `and0null.system-updates` (v1.2.0)
+## system-updates — `and0null.system-updates` (v1.2.1)
 
 A compact bar button that shows pending system updates (pacman + AUR + flatpak + mise), and
 only appears when there is something to do. Left-click opens a management card with a
@@ -642,7 +642,10 @@ Show in bar when up to date        [ On ]
 
 - **Per source**: re-scan just that source, include it in the automatic scans, or update
   it alone.
-- **Scan all / Update all** cover every enabled source.
+- **Scan all / Update all** cover every enabled source. **Update all** upgrades repos + AUR
+  with the helper the mod's own probe found (`paru -Syu`, or `yay -Syu`), then flatpak and
+  mise when installed. With no AUR helper found it falls back to `sudo pacman -Syu`, so it
+  never runs a binary that is not there.
 - **Show in bar when up to date**: off (default) hides the button when everything is up
   to date; on keeps it with a green check.
 
@@ -676,13 +679,18 @@ do not use can be switched off in the card (each has its own `scan*` toggle in
 ### Verification
 
 `tests/run.sh` runs a behavioral test of the service against the real source under
-Quickshell, covering the per-source state machine (mise included) and the update guard.
+Quickshell, covering the per-source state machine (mise included), the update guard and the
+helper that **Update all** builds its command from.
 It is falsifiable: breaking `sourceState()` fails the run, and forcing the mise branch to
 return `up` fails 2 checks. `tests/check-static.py` adds two guards the runtime test cannot
 see — an assignment to an undeclared `root.<name>` (a runtime-only QML warning, invisible
 in a callback the test never runs) and `sh -c "exec <shell builtin>"` (which dies with
 exit 127, so a probe built that way reads as "not installed" forever). The mod was also loaded from a
-built generation on Ambxst 1.3.3 (`af9f8ad4`) with no QML errors or warnings.
+built generation on Ambxst 1.3.3 (`af9f8ad4`) and 1.3.9 (`3705f278`) with no QML errors or
+warnings. The 1.3.10 base (`bc60230`) was checked statically: the two patch hunks still match,
+and every service it calls (`ModsService.getSettings`/`setSetting`/`settingChanged`,
+`TerminalService.binary`/`advanced`/`commandTemplate`, `BarPopup`, `StyledRect.enableShadow`) is
+unchanged there.
 
 ### Notes
 

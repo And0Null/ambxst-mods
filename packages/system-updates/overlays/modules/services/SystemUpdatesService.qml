@@ -359,11 +359,23 @@ Singleton {
         updateRunner.running = true;
     }
 
-    // Update every source the mod counts. paru -Syu covers pacman repos + AUR;
-    // flatpak and mise are updated too when installed. mise runs with the same
+    // Update every source the mod counts. The repo+AUR half uses the helper
+    // the probe actually found: hardcoding paru left a yay-only machine
+    // running a binary it does not have, so "Update all" silently did
+    // nothing for pacman and AUR. Without a helper it falls back to the
+    // repo-only upgrade the card's own pacman row runs.
+    // flatpak and mise are updated when installed. mise runs with the same
     // -C $HOME scope as the check, so it upgrades the global config only.
+    readonly property string fullUpgradeCommand: (root.aurHelper === "paru"
+            ? "paru -Syu"
+            : root.aurHelper === "yay"
+              ? "yay -Syu"
+              : "sudo pacman -Syu")
+        + "; command -v flatpak >/dev/null 2>&1 && flatpak update"
+        + "; command -v mise >/dev/null 2>&1 && mise -C \"$HOME\" upgrade"
+
     function updateNow() {
-        _launchUpdate("paru -Syu; command -v flatpak >/dev/null 2>&1 && flatpak update; command -v mise >/dev/null 2>&1 && mise -C \"$HOME\" upgrade");
+        _launchUpdate(root.fullUpgradeCommand);
     }
 
     // Run a single-source update command (from the card's per-source button).
