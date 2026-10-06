@@ -8,3 +8,5 @@
 __pycache__/
 # Local AI runtime state
 .atl/
+# NODD feature documents: per-feature bookkeeping, never part of a package
+.nodd/
