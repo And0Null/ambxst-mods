@@ -177,6 +177,8 @@ BarPopup {
                                 SystemUpdatesService.checkPacman();
                             else if (sourceRow.modelData.key === "aur")
                                 SystemUpdatesService.checkAur();
+                            else if (sourceRow.modelData.key === "mise")
+                                SystemUpdatesService.checkMise();
                             else
                                 SystemUpdatesService.checkFlatpak();
                         }

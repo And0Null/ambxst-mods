@@ -102,6 +102,23 @@ ShellRoot {
         check("update refused without terminal", svc.lastError !== "", true);
         check("no launch without terminal", svc.updateRunning, false);
 
+        // Update all must use the helper the probe found, never a hardcoded
+        // paru: on a yay-only machine that binary does not exist.
+        svc.aurHelper = "yay";
+        check("update all uses yay when that is the helper",
+              svc.fullUpgradeCommand.indexOf("yay -Syu") === 0, true);
+        check("update all never runs paru on a yay machine",
+              svc.fullUpgradeCommand.indexOf("paru"), -1);
+        svc.aurHelper = "paru";
+        check("update all uses paru when that is the helper",
+              svc.fullUpgradeCommand.indexOf("paru -Syu") === 0, true);
+        svc.aurHelper = "";
+        check("update all falls back to the repo upgrade with no helper",
+              svc.fullUpgradeCommand.indexOf("sudo pacman -Syu") === 0, true);
+        check("update all still covers flatpak and mise",
+              svc.fullUpgradeCommand.indexOf("flatpak update") > 0
+                  && svc.fullUpgradeCommand.indexOf("mise -C") > 0, true);
+
         console.log("\n--- system-updates service logic test ---");
         for (let i = 0; i < checks.length; i++)
             console.log(checks[i]);
