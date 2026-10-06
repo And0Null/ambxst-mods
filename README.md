@@ -703,44 +703,6 @@ unchanged there.
 
 ---
 
-## notch-companion — `and0null.notch-companion` (v0.1.0)
-
-A small abstract creature that lives beside the notch and reacts to [herdr](https://github.com/filipecaixeta/herdr)
-agents. It scans calmly while an agent is **working**, rests while **idle**, and turns
-unmistakably red — raised ears, wide eyes, pulsing error ring — when an agent is
-**blocked**. Hovering the notch wakes it; clicking it opens one compact row per agent
-(name, status, cwd, per-agent mini companion), and clicking a row focuses that agent's
-terminal pane. Character artwork is deliberately placeholder geometry for now.
-
-```bash
-ambxst mods install $HOME/Projects/code/ambxst-mods/staging/notch-companion
-ambxst mods enable and0null.notch-companion
-```
-
-### Usage
-
-- The companion peeks to the right of the notch whenever the notch is revealed.
-- **Click the creature** → the agent list view pushes onto the notch StackView;
-  click any row to focus that agent's terminal (`herdr agent focus`).
-- Requires the `herdr` daemon; if it is absent the companion just stays idle and
-  the list shows "no agents" instead of erroring.
-
-### Requirements
-
-- Ambxst 1.3.x with the notch enabled.
-- `herdr` on `$PATH`.
-
-### Notes
-
-- Patches `modules/notch/NotchContent.qml` with two insertion-only hunks: one
-  import line after `import qs.modules.bar.workspaces`, and a peek + view block
-  between `notificationViewComponent: ...` and `visibilities: ...` inside the
-  `Notch {}` instantiation. `drpezzer.roadie` also patches this file but at the
-  `defaultViewComponent` block (~line 162), so the hunks do not share context.
-  Tested against Ambxst base commit `2a704c438ddc0b94a11f4e4cf32a16220b62141f`.
-
----
-
 ## lan-share — `and0null.lan-share` (v1.3.1)
 
 LAN peer presence and transfer for the LocalSend protocol, driven by a vendored helper
