@@ -92,6 +92,13 @@ Item {
         bar: root.bar
         popupPadding: 12
 
+        // The sender is blocked on our answer while a request is pending, and
+        // the helper's incoming slot only clears on accept/decline - losing
+        // focus here would strand it and 409 every later send. Holding the
+        // grab keeps the prompt on screen until it is answered; the bar button
+        // still closes it on purpose, and viewClosed() then declines.
+        closeOnFocusLost: !LanShareService.incomingHoldsPopup
+
         contentWidth: 360
         contentHeight: 480
 
