@@ -118,6 +118,71 @@ ColumnLayout {
                 wrapMode: Text.WordWrap
             }
 
+            // Firewall warning (v1.3.2). Shown only when the kernel logged a
+            // real drop of our port while the receiver was ON, so it names a
+            // cause instead of a symptom. Deliberately not an error state:
+            // transfers still work on an unblocked network, and this does not
+            // belong in errorText.
+            ColumnLayout {
+                id: firewallRow
+                visible: LanShareService.firewallBlocked
+                Layout.fillWidth: true
+                spacing: 6
+
+                // The clipboard write is asynchronous and the service reports
+                // its own failure through errorText, so the button states the
+                // intent rather than claiming a copy it cannot confirm.
+                property bool copied: false
+
+                StyledRect {
+                    Layout.fillWidth: true
+                    variant: "error"
+                    radius: Styling.radius(8)
+
+                    ColumnLayout {
+                        anchors.fill: parent
+                        anchors.margins: 10
+                        spacing: 8
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 8
+
+                            Text {
+                                text: Icons.alert
+                                font.family: Icons.font
+                                font.pixelSize: 15
+                                color: Styling.srItem("overerror")
+                            }
+
+                            Text {
+                                Layout.fillWidth: true
+                                text: "FIREWALL"
+                                color: root.strongFg
+                                font.pixelSize: 12
+                                font.bold: true
+                            }
+                        }
+
+                        Text {
+                            Layout.fillWidth: true
+                            text: "Your firewall is dropping port 53317, so devices cannot reach this one. Open it for your local network:"
+                            color: root.softFg
+                            font.pixelSize: 11
+                            wrapMode: Text.WordWrap
+                        }
+
+                        LanShareAction {
+                            label: firewallRow.copied ? "Copied — paste it in a terminal" : "Copy the four ufw commands"
+                            onClicked: {
+                                LanShareService.copyFirewallCommand();
+                                firewallRow.copied = true;
+                            }
+                        }
+                    }
+                }
+            }
+
             // Devices
             ColumnLayout {
                 visible: LanShareService.viewState === "lanshare"

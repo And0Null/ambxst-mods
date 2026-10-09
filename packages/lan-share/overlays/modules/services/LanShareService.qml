@@ -140,6 +140,15 @@ Singleton {
     property string startupFailureCode: ""
     property int startupFailurePort: 0
 
+    // v1.3.2: the kernel has been dropping our LocalSend port. Set only from
+    // a real `[UFW BLOCK] ... DPT=53317` line logged since THIS receiver
+    // window opened (see firewallWatch), so it is evidence rather than a
+    // guess, and it clears on the next receiver start. Sticky for the rest of
+    // the window on purpose: a block that already happened keeps happening,
+    // and a warning that vanished on its own would be worse than none.
+    property bool firewallBlocked: false
+    readonly property string firewallCommand: Model.firewallFixCommand()
+
     // Discovery follows the popup, and popups exist once per monitor, so
     // openness is a count: discovery runs while any view is open.
     property int openViewCount: 0
@@ -1020,6 +1029,74 @@ Singleton {
             if (code !== 0)
                 root.reportFailure("Copy unavailable", "wl-copy is required to copy received text.");
         }
+    }
+
+    // v1.3.2: prove a host firewall is eating the LocalSend port instead of
+    // guessing. `-k -f -n 0` follows the kernel journal from NOW, so a block
+    // logged before the receiver went ON cannot warn about the current state;
+    // --output cat strips the syslog prefix and leaves the UFW line as-is.
+    // Kernel lines are world-readable, so this needs no privilege - which is
+    // the whole point: the mod never asks for any.
+    //
+    // Fail-silent by construction. If journalctl is missing, or the kernel
+    // journal is not readable as this user, it exits immediately and the
+    // warning simply never appears. The alternative - warning on failure too -
+    // would fire on every machine where the journal is locked down, which is
+    // the noise this feature exists to remove.
+    Process {
+        id: firewallWatch
+        command: ["journalctl", "-k", "-f", "-n", "0", "--output", "cat"]
+        running: root.receiverEnabled && root._restored
+        stdout: SplitParser {
+            onRead: function(line) {
+                if (Model.isFirewallBlockLine(line))
+                    root.firewallBlocked = true;
+            }
+        }
+        // `running` is a binding, so this also fires when the receiver is
+        // turned OFF. Clearing only on the way up means a fresh receiver
+        // window starts unproven again.
+        onRunningChanged: {
+            if (running)
+                root.firewallBlocked = false;
+        }
+    }
+
+    // Copying the suggested fix. No privileges and no pkexec: the mod puts
+    // the command on the clipboard and the user runs it, which keeps the
+    // mod's permission surface exactly what the manifest declares.
+    Process {
+        id: firewallClipboard
+        property bool launched: false
+        command: ["wl-copy"]
+        running: false
+        stdinEnabled: true
+        onStarted: {
+            firewallClipboard.launched = true;
+            firewallClipboard.write(root.firewallCommand);
+            firewallClipboard.stdinEnabled = false;
+        }
+        onRunningChanged: {
+            if (!running && !firewallClipboard.launched)
+                root.reportFailure("Copy unavailable", "wl-copy is required to copy the firewall command.");
+        }
+        onExited: function(code) {
+            firewallClipboard.stdinEnabled = true;
+            if (!firewallClipboard.launched)
+                return;
+            if (code !== 0)
+                root.reportFailure("Copy unavailable", "wl-copy is required to copy the firewall command.");
+        }
+    }
+
+    // No "already copied" latch here: this Process lives in the session
+    // singleton while the card's button label lives in the popup, which is
+    // rebuilt every time. A latch set on the first copy would survive the
+    // popup, so after a receiver restart the row would come back offering
+    // the button and every click would be swallowed while still claiming a
+    // copy. Each click just runs wl-copy again.
+    function copyFirewallCommand() {
+        firewallClipboard.running = true;
     }
 
     // The helper holds its single incoming slot until it gets an explicit

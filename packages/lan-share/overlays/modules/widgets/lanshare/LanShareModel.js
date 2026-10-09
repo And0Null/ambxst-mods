@@ -15,6 +15,11 @@
 // - UI cosmetics (iconFor, formatBytes): the card owns its presentation.
 //   (v1.1 adds file-send shaping below; shell.json bar-entry helpers stay
 //   excluded for the same reason as above.)
+// - v1.3.2 adds the firewall-block detection helper (isFirewallBlockLine)
+//   and the fix it suggests (firewallFixCommand). Both are pure string
+//   work, so the journal filter is Node-testable like everything else here.
+//   The journal Process and the card's warning row stay out of this file:
+//   they are presentation, not shaping.
 //
 // No QML signals in this file. All functions are pure and Node-testable.
 function parseLine(line) {
@@ -183,4 +188,40 @@ function helperSatisfies(requiredVersion, helperVersion) {
   return order !== null && order >= 0
 }
 
-if (typeof module !== "undefined") module.exports = { parseLine, upsertDevice, snapshotDevices, pruneStaleDevices, incomingSummary, enqueueIncoming, removeIncoming, currentIncoming, sendTextCommand, sendFilesCommand, dirOf, parseVersion, compareVersions, helperSatisfies }
+// v1.3.2: is this kernel line proof that the host firewall is eating
+// LocalSend? The kernel logs every dropped packet as
+//   [UFW BLOCK] IN=wlp0s20f3 OUT= ... DST=172.20.10.2 PROTO=TCP DPT=53317
+// Three conditions, each of which a real line needs and a decoy does not:
+//   - the UFP drop tag and our port (any other drop is not our problem),
+//   - no OUT=<iface>: a locally-originated packet is our own traffic, and
+//     no local process of ours can stop a peer from reaching us,
+//   - a unicast DST: the same journal line covers our OWN multicast
+//     announce (DST=224.0.0.167 SPT=53317 DPT=53317), which is a
+//     different problem and would otherwise read as "peers can't get in".
+// A DST this module cannot read is refused rather than assumed: a warning
+// nobody can act on is worse than no warning.
+function isFirewallBlockLine(line) {
+  var text = String(line || "")
+  if (text.indexOf("[UFW BLOCK]") === -1) return false
+  if (text.indexOf("DPT=53317") === -1) return false
+  if (/\bOUT=\S/.test(text)) return false
+  var dst = /\bDST=([0-9.]+)/.exec(text)
+  if (!dst) return false
+  var address = dst[1]
+  if (address.charAt(0) === "2") return false
+  if (address === "255.255.255.255") return false
+  return true
+}
+
+// v1.3.2: the fix the warning offers. RFC1918 rather than one subnet, so
+// the rule survives the next network (a phone hotspot is 172.20.10.0/28,
+// home wifi is usually 192.168.x, and neither was covered by the other).
+// Two lines because ufw allows exactly one protocol per rule.
+function firewallFixCommand() {
+  return "sudo ufw allow from 192.168.0.0/16 to any port 53317 proto tcp\n"
+    + "sudo ufw allow from 192.168.0.0/16 to any port 53317 proto udp\n"
+    + "sudo ufw allow from 172.16.0.0/12 to any port 53317 proto tcp\n"
+    + "sudo ufw allow from 172.16.0.0/12 to any port 53317 proto udp"
+}
+
+if (typeof module !== "undefined") module.exports = { parseLine, upsertDevice, snapshotDevices, pruneStaleDevices, incomingSummary, enqueueIncoming, removeIncoming, currentIncoming, sendTextCommand, sendFilesCommand, dirOf, parseVersion, compareVersions, helperSatisfies, isFirewallBlockLine, firewallFixCommand }

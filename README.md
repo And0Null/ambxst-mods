@@ -703,7 +703,7 @@ unchanged there.
 
 ---
 
-## lan-share — `and0null.lan-share` (v1.3.1)
+## lan-share — `and0null.lan-share` (v1.3.2)
 
 LAN peer presence and transfer for the LocalSend protocol, driven by a vendored helper
 binary (a pinned build of [oma.nearby](https://github.com/jfg96/oma.nearby)'s helper,
@@ -729,6 +729,9 @@ ambxst mods enable and0null.lan-share
   `~/Downloads` (unique suffix on name collision) and notifies via `notify-send`;
   decline drops it. Incoming text arrives into your clipboard (`wl-copy`).
 - Transfers show progress and a cancel button, reporting per LocalSend.
+- **Firewall warning**: if the kernel logged a drop of port 53317 while the receiver
+  was ON, a row in the card names the cause and offers a button that copies the
+  `ufw` rules that fix it. See [The firewall](#the-firewall) below.
 
 ### Behavior
 
@@ -745,11 +748,53 @@ ambxst mods enable and0null.lan-share
 - Version gate: the service refuses (visible error) a helper older than
   `1.1.2` — the oldest protocol it drives.
 
+### The firewall
+
+LocalSend needs **TCP and UDP 53317** inbound. A host firewall that drops it is the
+one failure that looks like a broken mod: the helper is running, the peers are
+visible, and nothing can arrive. It is also the failure that appears *after a
+network change* — a rule scoped to one subnet covers the WiFi you wrote it on and
+nothing else, so tethering to a phone hotspot silently breaks a LAN that worked
+at home.
+
+```bash
+# covers 192.168.x home wifi, 172.16-172.31 phone hotspots and Android tethering
+sudo ufw allow from 192.168.0.0/16 to any port 53317 proto tcp
+sudo ufw allow from 192.168.0.0/16 to any port 53317 proto udp
+sudo ufw allow from 172.16.0.0/12 to any port 53317 proto tcp
+sudo ufw allow from 172.16.0.0/12 to any port 53317 proto udp
+```
+
+Scope the rules to RFC1918 rather than to the subnet you are on today, or the next
+network you connect to will fail the same way. The card's **Copy the four ufw
+commands** button puts exactly these lines on your clipboard — the mod copies them,
+it never runs them, and never asks for privilege.
+
+Since **v1.3.2** the mod watches the kernel journal while the receiver is ON and
+shows the warning when it sees a real drop, instead of leaving you to guess. The
+check is deliberately narrow: an inbound packet (`OUT=` empty) to a unicast address
+on port 53317. Your own outgoing multicast announce is dropped by the same log with
+`DST=224.0.0.167`, and that is a different problem, so it does not trigger it.
+
+**Limits, stated plainly.** It watches for UFW only — a drop logged by firewalld or
+a bare nftables ruleset is invisible to it, and so is a blocked packet on a machine
+whose kernel journal the login user cannot read, where the watch exits silently and
+the warning simply never appears. It is a diagnosis aid for the case that actually
+recurred, not a firewall audit.
+
+To diagnose by hand, which needs no sudo:
+
+```bash
+journalctl --since -5m --no-pager | grep 'UFW BLOCK' | grep 53317
+```
+
 ### Requirements
 
 `zenity` (files send picker) + the standard Wayland clipboard tools the shell already
-ships (`wl-paste`/`wl-copy`) and `notify-send`. Declared in the manifest's
-`commands`, so the installer warns if `zenity` is missing.
+ships (`wl-paste`/`wl-copy`) and `notify-send`. `journalctl` (systemd) is used by
+the v1.3.2 firewall warning; without it that one row never appears and nothing else
+changes. Declared in the manifest's `commands`, so the installer warns if `zenity`
+is missing.
 
 ### Verification
 
@@ -768,6 +813,14 @@ ships (`wl-paste`/`wl-copy`) and `notify-send`. Declared in the manifest's
   manager's own sequence — clean apply for 1.3.0 → 1.3.8, and a byte-identical result
   to the pre-1.3.1 patch in the order that already worked.
 - `testedBaseCommits` in the manifest: `af9f8ad4…` and `2a704c43…` (Ambxst 1.3.x).
+- v1.3.2 adds the firewall warning. The filter is a pure function
+  (`isFirewallBlockLine` in `LanShareModel.js`), so it is Node-testable like the rest
+  of that module, and it was checked against the four real journal lines this was
+  built from — the two inbound TCP blocks and the two multicast lines carrying the
+  same `DPT=53317`. Only the former match; the latter are the mod's own announce and
+  must not, which is why the check reads `DST=` and not the port alone. The `ufw`
+  fix it offers is the same RFC1918 rule set applied by hand on 2026-10-09, when
+  this was first reported as "the mod stopped working".
 
 ### Notes
 

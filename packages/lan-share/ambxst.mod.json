@@ -3,8 +3,8 @@
     "manifestVersion": 1,
     "id": "and0null.lan-share",
     "name": "LAN Share",
-    "version": "1.3.1",
-    "description": "LAN peer presence and transfer via a vendored LocalSend helper (discovery plus text send plus incoming-file accept plus PC-to-phone file send via a zenity picker). Receiver stays OFF until enabled; the announced device name is configurable and defaults to the system hostname.",
+    "version": "1.3.2",
+    "description": "LAN peer presence and transfer via a vendored LocalSend helper (discovery plus text send plus incoming-file accept plus PC-to-phone file send via a zenity picker). Receiver stays OFF until enabled; the announced device name is configurable and defaults to the system hostname. Warns in the card when the kernel logs the host firewall dropping the LocalSend port, with a button that copies the ufw rules that fix it.",
     "license": "MIT",
     "author": "And0Null",
     "compatibility": {
@@ -27,7 +27,9 @@
         "Reads clipboard text via wl-paste and writes received text via wl-copy for text send",
         "Saves accepted incoming files to ~/Downloads with a unique suffix on name collision",
         "Sends desktop notifications via notify-send on transfer completion",
-        "Spawns zenity --file-selection --multiple for the Send files picker (PC to phone)"
+        "Spawns zenity --file-selection --multiple for the Send files picker (PC to phone)",
+        "Follows the kernel journal with journalctl -k -f -n 0 while the receiver is ON, reading only world-readable kernel lines, to detect the host firewall dropping port 53317 and show it in the card",
+        "Never asks for privilege: the firewall fix is copied to the clipboard for the user to run, never executed by this mod"
     ],
     "settings": {
         "schema": "settings.json"
