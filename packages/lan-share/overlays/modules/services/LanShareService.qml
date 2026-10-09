@@ -116,6 +116,13 @@ Singleton {
 
     property var incomingQueue: []
     readonly property var incoming: Model.currentIncoming(incomingQueue)
+    // True while a request occupies the helper's single incoming slot: a
+    // pending prompt, or an accepted session still transferring. That slot is
+    // released ONLY by an explicit accept/decline - neither the helper's own
+    // ~60s expiry nor a dropped connection frees it, and while it is held
+    // every later send is rejected with 409 Conflict. So the popup keeps its
+    // focus grab while this holds, and incomingTimeout guarantees an answer.
+    readonly property bool incomingHoldsPopup: root.incoming !== null || root.activeIncomingSession !== ""
     property string incomingText: ""
     property bool incomingTextPending: false
     property real progress: 0
@@ -328,6 +335,9 @@ Singleton {
         if (root.openViewCount !== 0)
             return;
         rescanStarter.stop();
+        // The popup went away with a request still pending: decline it before
+        // dropping the queue. Clearing the queue alone would strand the slot.
+        root.releaseIncomingSlot();
         root.stopDiscovery();
         // Real close: never keep last session's presence on the card. The
         // next open re-discovers from zero via rescan().
@@ -477,6 +487,7 @@ Singleton {
         var id = requestId || (current ? current.requestId : "");
         if (!id)
             return;
+        incomingTimeout.stop();
         root.send({ command: "decline", request_id: id });
         root.incomingQueue = Model.removeIncoming(root.incomingQueue, id);
         if (root.incoming) {
@@ -490,6 +501,25 @@ Singleton {
             root.viewState = "lanshare";
             root.statusText = "Declined";
         }
+    }
+
+    // Decline everything still queued so the helper's incoming slot is freed.
+    // Called when the last popup closes: an unanswered prompt must never be
+    // dropped silently, because the slot it holds survives expiry and would
+    // reject every future send with 409. Does nothing once a transfer is
+    // actually running - that session releases itself when it finishes.
+    function releaseIncomingSlot() {
+        if (root.activeIncomingSession !== "" || !root.incomingQueue.length)
+            return;
+        for (var i = 0; i < root.incomingQueue.length; i++) {
+            var pending = root.incomingQueue[i];
+            if (pending && pending.requestId)
+                root.send({ command: "decline", request_id: String(pending.requestId) });
+        }
+        incomingTimeout.stop();
+        root.incomingQueue = [];
+        if (root.viewState === "incoming")
+            root.viewState = "lanshare";
     }
 
     function copyReceivedText() {
@@ -700,6 +730,8 @@ Singleton {
                 var takesView = root.viewState !== "sending" && root.viewState !== "receiving";
                 if (takesView)
                     root.viewState = "incoming";
+                if (root.incoming && root.incoming.requestId === event.requestId)
+                    incomingTimeout.restart();
                 if (root.notificationNeeded(takesView && root.incoming && root.incoming.requestId === event.requestId))
                     Quickshell.execDetached(["notify-send", "-a", "LAN Share", "Incoming transfer",
                         String(event.sender) + " wants to send " + Model.incomingSummary(event.files)]);
@@ -715,9 +747,12 @@ Singleton {
             if (root.notificationNeeded(!root.incomingTextPending))
                 Quickshell.execDetached(["notify-send", "-a", "LAN Share", "Text received", "From " + String(event.sender || "")]);
         } else if (event.event === "incoming_accepted") {
+            incomingTimeout.stop();
             root.incomingQueue = Model.removeIncoming(root.incomingQueue, event.requestId);
         } else if (event.event === "incoming_expired") {
             var expiredWasCurrent = root.incoming && root.incoming.requestId === event.requestId;
+            if (expiredWasCurrent)
+                incomingTimeout.stop();
             root.incomingQueue = Model.removeIncoming(root.incomingQueue, event.requestId);
             if (expiredWasCurrent && (root.viewState === "incoming" || (root.viewState === "receiving" && root.activeIncomingSession === ""))) {
                 if (root.incoming) {
@@ -782,6 +817,7 @@ Singleton {
                 return;
             root.finishIncoming("error", String(event.message || "Transfer failed"), false);
         } else if (event.event === "incoming_declined") {
+            incomingTimeout.stop();
             root.incomingQueue = Model.removeIncoming(root.incomingQueue, event.requestId);
         } else if (event.event === "outgoing_preparing") {
             if (String(event.transferId) !== root.outgoingTransferId)
@@ -983,6 +1019,23 @@ Singleton {
                 return;
             if (code !== 0)
                 root.reportFailure("Copy unavailable", "wl-copy is required to copy received text.");
+        }
+    }
+
+    // The helper holds its single incoming slot until it gets an explicit
+    // accept/decline: its own ~60s expiry does NOT free it, so an unanswered
+    // prompt wedges the receiver permanently (every later send gets 409).
+    // This answers on the user's behalf, deliberately under the helper's own
+    // window - a decline after expiry no longer releases anything.
+    Timer {
+        id: incomingTimeout
+        interval: 45000
+        repeat: false
+        onTriggered: {
+            if (!root.incoming)
+                return;
+            root.declineIncoming();
+            root.statusText = "Transfer request timed out";
         }
     }
 
