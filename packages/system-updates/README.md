@@ -2,6 +2,10 @@
 
 A compact Ambxst bar button that monitors pending system updates across official repositories (`pacman`), the AUR (`paru`/`yay`), Flatpak, and `mise`. The button stays hidden until updates are available.
 
+**Compatibility**: Ambxst `>=1.3.0 <1.5.0`. On 1.4.1 the bar patch and the service
+harness were verified structurally; the button's visuals inside 1.4.1 were not
+re-checked on a live shell.
+
 ---
 
 ## Installation

@@ -18,7 +18,7 @@ ambxst reload
 |---|---|---|---|---|---|
 | **pkg-launcher** | [`packages/pkg-launcher`](packages/pkg-launcher/) | `and0null.pkg-launcher` | v1.6.1 | Pacseek-style package search and installer for pacman and AUR (paru/yay). | `ambxst mods install https://github.com/And0Null/ambxst-mods/tree/main/packages/pkg-launcher` |
 | **desktop-widgets** | [`packages/desktop-widgets`](packages/desktop-widgets/) | `and0null.desktop-widgets` | v1.19.0 | Liquid-glass desktop widgets (clock, calendar with iCal, weather, system, MPRIS player). | `ambxst mods install https://github.com/And0Null/ambxst-mods/tree/main/packages/desktop-widgets` |
-| **system-updates** | [`packages/system-updates`](packages/system-updates/) | `and0null.system-updates` | v1.2.1 | Compact bar indicator and interactive updater for pacman, AUR, Flatpak, and mise. | `ambxst mods install https://github.com/And0Null/ambxst-mods/tree/main/packages/system-updates` |
+| **system-updates** | [`packages/system-updates`](packages/system-updates/) | `and0null.system-updates` | v1.2.2 | Compact bar indicator and interactive updater for pacman, AUR, Flatpak, and mise. | `ambxst mods install https://github.com/And0Null/ambxst-mods/tree/main/packages/system-updates` |
 | **lan-share** | [`packages/lan-share`](packages/lan-share/) | `and0null.lan-share` | v1.3.2 | LocalSend LAN peer discovery, clipboard sync, and file transfer with UFW firewall diagnostics. | `ambxst mods install https://github.com/And0Null/ambxst-mods/tree/main/packages/lan-share` |
 
 ---
