@@ -54,3 +54,11 @@ journalctl --since -5m --no-pager | grep 'UFW BLOCK' | grep 53317
 - `notify-send`
 - Systemd `journalctl` (for active firewall drop warnings)
 - Ambxst desktop shell 1.3+
+
+---
+
+## Building the helper
+
+The mod ships a prebuilt x86-64 helper because Ambxst mods install files and never
+compile. Source, the pinned upstream commit, and build instructions — including
+aarch64 — are in [BUILD.md](BUILD.md).
