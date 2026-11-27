@@ -2,6 +2,13 @@
 
 Desktop widgets for the Ambxst desktop shell: clock, month calendar with iCal agenda, weather, system telemetry (CPU, RAM, GPU), and MPRIS media player, floating in liquid-glass cards on an input-transparent bottom layer above the wallpaper.
 
+> **Status: dormant.** Maintained for Ambxst `>=1.3.6 <1.4.0` only and not actively
+> developed right now. This mod is almost entirely visual and the maintainer no longer
+> runs Ambxst, so a change could not be verified where it matters. Ambxst 1.4.x refuses
+> this manifest by design. Issues and PRs are welcome; if you pick it up,
+> `tests/family-size-preview.py` renders the cards on a headless Hyprland output and
+> captures them with `grim`, so it can be iterated without a live desktop in front of you.
+
 ---
 
 ## Installation
